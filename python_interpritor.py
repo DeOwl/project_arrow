@@ -34,10 +34,12 @@ class MainWindow(QWidget):
         self.setLayout(main_layout)
         self.files_tabs.addTab(new_tab, "Tab 1")
 
-        menu_bar.triggered.connect(self.do_smt)
+        play_file_action = QAction("run", self)
+        options_bar.addAction(play_file_action)
+        play_file_action.triggered.connect(self.do_smt)
 
-    def do_smt(self, action):
-        print(action)
+    def do_smt(self):
+        pass
 
 
 if __name__ == '__main__':
