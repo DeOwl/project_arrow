@@ -4,6 +4,7 @@ from PyQt5.QtCore import Qt
 import sys
 
 
+# Гы
 class MainWindow(QWidget):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
