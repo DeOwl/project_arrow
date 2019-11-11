@@ -84,6 +84,7 @@ class MainWindow(QWidget):
     def run_file(self):
         if self.tabs:
             path = self.tabs[self.files_tabs.currentIndex()].file_path
+            print(path)
             if os.path.exists(path):
                 self.save_file()
 
@@ -92,7 +93,13 @@ class MainWindow(QWidget):
             sys.stdin, sys.stdout = stdin, stdout
             with open(path, encoding="utf-8") as file:
                 data = file.read()
-            exec(data)
+            try:
+                exec(data, globals())
+                print("finished with exit code 0")
+
+            except Exception:
+                print(sys.exc_info())
+
             self.output_text_edit.setText(stdout.getvalue())
 
 
