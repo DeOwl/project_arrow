@@ -4,6 +4,7 @@ from PyQt5.QtCore import Qt
 import sys
 import os
 import io
+from tello_binom import *
 
 
 class MainWindow(QWidget):
@@ -18,6 +19,7 @@ class MainWindow(QWidget):
 
         file_menu = menu_bar.addMenu("File")
         options_bar = menu_bar.addMenu("options")
+        add_function_bar = menu_bar.addMenu("add function")
 
         new_file_action = QAction("new file", self)
         file_menu.addAction(new_file_action)
@@ -34,6 +36,10 @@ class MainWindow(QWidget):
         remove_tab_action = QAction("close current file", self)
         options_bar.addAction(remove_tab_action)
         remove_tab_action.triggered.connect(self.close_current_tab)
+
+        add_start_function_action = QAction("add start function", self)
+        add_function_bar.addAction(add_start_function_action)
+        add_start_function_action.triggered.connect(self.add_start_function)
 
         self.files_tabs = QTabWidget()
         main_layout = QVBoxLayout()
@@ -101,6 +107,13 @@ class MainWindow(QWidget):
                 print(sys.exc_info())
 
             self.output_text_edit.setText(stdout.getvalue())
+
+    def add_start_function(self):
+        try:
+            textedit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
+            textedit.insertPlainText("tello_binom.start()")
+        except ValueError:
+            pass
 
 
 if __name__ == '__main__':
