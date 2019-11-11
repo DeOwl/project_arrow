@@ -1,10 +1,33 @@
-from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QTextEdit, QAction, QWidget, QVBoxLayout, QFileDialog, QHBoxLayout
-from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt
 import sys
 import os
 import io
+from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QTextEdit, QAction, QWidget, \
+    QVBoxLayout, QFileDialog, QHBoxLayout
+from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from tello_binom import *
+
+
+def hook(*args):
+    sys.stdout = sys.__stdout__
+    print(*args)
+
+
+class CodeThread(QThread):
+    thrd_done = pyqtSignal()
+    prnt_txt = pyqtSignal()
+
+    def __init__(self, code, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.code = code
+
+    def run(self):
+        try:
+            exec(self.code, globals())
+        except:
+            print(sys.exc_info(), file=sys.stdout)
+        finally:
+            self.thrd_done.emit()
 
 
 class MainWindow(QWidget):
@@ -43,7 +66,7 @@ class MainWindow(QWidget):
 
         take_off_function = QAction("take off", self)
         add_function_bar.addAction(take_off_function)
-        take_off_function.triggered.connect()
+        take_off_function.triggered.connect(self.add_take_off_function)
 
         self.files_tabs = QTabWidget()
         main_layout = QVBoxLayout()
@@ -87,30 +110,39 @@ class MainWindow(QWidget):
         self.files_tabs.removeTab(self.files_tabs.currentIndex())
 
     def save_file(self):
-        with open(self.tabs[self.files_tabs.currentIndex()].file_path, mode="wt", encoding="UTF-8") as file:
+        with open(self.tabs[self.files_tabs.currentIndex()].file_path, mode="wt",
+                  encoding="UTF-8") as file:
             file.write(self.tabs[self.files_tabs.currentIndex()].layout().itemAt(
                 0).widget().toPlainText())
 
     def run_file(self):
         if self.tabs:
             path = self.tabs[self.files_tabs.currentIndex()].file_path
-            print(path)
             if os.path.exists(path):
                 self.save_file()
 
-            stdin = io.StringIO(self.input_text_edit.toPlainText())
-            stdout = io.StringIO()
-            sys.stdin, sys.stdout = stdin, stdout
+            self.stdout = io.StringIO()
+            sys.stdout = self.stdout
             with open(path, encoding="utf-8") as file:
                 data = file.read()
-            try:
-                exec(data, globals())
-                print("finished with exit code 0")
 
-            except:
-                print(sys.exc_info())
+            another_thread = CodeThread(data)
+            self.thrd_ = another_thread
+            another_thread.thrd_done.connect(self.exec_succesful)
 
-            self.output_text_edit.setText(stdout.getvalue())
+            t = QTimer()
+            self.t = t
+            t.timeout.connect(QApplication.processEvents)
+            t.start(100)
+
+            another_thread.start()
+
+    def exec_succesful(self):
+        self.output_text_edit.setText(self.stdout.getvalue())
+        QApplication.processEvents()
+        self.thrd_.wait()
+        self.thrd_.quit()
+        self.t.stop()
 
     def add_start_function(self):
         try:
@@ -143,6 +175,7 @@ class MainWindow(QWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    sys.excepthook = hook
     window = MainWindow()
     window.show()
-    app.exec()
+    sys.exit(app.exec())
