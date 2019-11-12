@@ -61,9 +61,17 @@ class MainWindow(QWidget):
         add_function_bar.addAction(start_function_action)
         start_function_action.triggered.connect(self.add_start_function)
 
-        take_off_function = QAction("take off", self)
-        add_function_bar.addAction(take_off_function)
-        take_off_function.triggered.connect(self.add_take_off_function)
+        take_off_action = QAction("take off", self)
+        add_function_bar.addAction(take_off_action)
+        take_off_action.triggered.connect(self.add_take_off_function)
+
+        land_action = QAction("land", self)
+        add_function_bar.addAction(land_action)
+        land_action.triggered.connect(self.add_land_function)
+
+        start_video_action = QAction("start video", self)
+        add_function_bar.addAction(start_video_action)
+        start_video_action.triggered.connect(self.add_start_video_function)
 
         self.files_tabs = QTabWidget()
         main_layout = QVBoxLayout()
@@ -138,33 +146,29 @@ class MainWindow(QWidget):
 
     def add_start_function(self):
         try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(
-                0).widget()
-            text_edit.insertPlainText("tello_binom.start()")
+            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
+            text_edit.insertPlainText("start()\n")
         except:
             pass
 
     def add_take_off_function(self):
         try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(
-                0).widget()
-            text_edit.insertPlainText("tello_binom.take_off()")
+            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
+            text_edit.insertPlainText("take_off()\n")
         except:
             pass
 
     def add_land_function(self):
         try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(
-                0).widget()
-            text_edit.insertPlainText("tello_binom.land()")
+            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
+            text_edit.insertPlainText("land()\n")
         except:
             pass
 
     def add_start_video_function(self):
         try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(
-                0).widget()
-            text_edit.insertPlainText("tello_binom.start_video()")
+            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
+            text_edit.insertPlainText("start_video()\n")
         except:
             pass
 
