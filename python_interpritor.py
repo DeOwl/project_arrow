@@ -15,7 +15,7 @@ def hook(*args):
 
 class CodeThread(QObject):
     thrd_done = pyqtSignal()
-    prnt_txt = pyqtSignal()
+#    prnt_txt = pyqtSignal()
 
     def __init__(self, code, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -25,6 +25,11 @@ class CodeThread(QObject):
         self.thrd.start()
 
         self.run_code(code)
+
+
+    def __del__(self):
+        self.thrd.quit()
+        self.thrd.wait()
 
     def run_code(self, code):
         try:
@@ -92,6 +97,9 @@ class MainWindow(QWidget):
         self.tabs = []
         self.setLayout(main_layout)
 
+    def exec_ended(self):
+        del self.thrd
+        self.output_text_edit.setText(sys.stdout.getvalue())
     def create_and_open_new_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self, "open/new file", "", "Py(*.py)")
@@ -131,7 +139,7 @@ class MainWindow(QWidget):
             with open(path, encoding="utf-8") as file:
                 data = file.read()
 
-            thrd = CodeThread(data)
+            self.thrd = CodeThread(data)
 
     def add_start_function(self):
         try:
