@@ -14,31 +14,18 @@ def hook(*args):
 
 
 class CodeThread(QObject):
-    thrd_done = pyqtSignal()
-#    prnt_txt = pyqtSignal()
-
     def __init__(self, code, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.code = code
 
-        self.thrd = QThread()
-        self.moveToThread(self.thrd)
-        self.thrd.start()
-
-        self.run_code(code)
-
-
-    def __del__(self):
-        self.thrd.quit()
-        self.thrd.wait()
-
-    def run_code(self, code):
+    @pyqtSlot()
+    def run_code(self):
         try:
-            exec(code, globals())
+            exec(self.code, globals())
         except:
             print(sys.exc_info(), file=sys.stdout)
-        finally:
-            self.thrd_done.emit()
-
+        else:
+            self.thread().finished.emit()
 
 class MainWindow(QWidget):
     def __init__(self, parent=None):
@@ -98,8 +85,10 @@ class MainWindow(QWidget):
         self.setLayout(main_layout)
 
     def exec_ended(self):
-        del self.thrd
         self.output_text_edit.setText(sys.stdout.getvalue())
+        self.thrd.thread().quit()
+        self.thrd.thread().wait()
+
     def create_and_open_new_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
             self, "open/new file", "", "Py(*.py)")
@@ -134,37 +123,47 @@ class MainWindow(QWidget):
             if os.path.exists(path):
                 self.save_file()
 
-            self.stdout = io.StringIO()
-            sys.stdout = self.stdout
+            stdout = io.StringIO()
+            sys.stdout = stdout
             with open(path, encoding="utf-8") as file:
                 data = file.read()
 
             self.thrd = CodeThread(data)
+            thread = QThread()
+            thread.started.connect(self.thrd.run_code)
+            thread.finished.connect(self.exec_ended)
+            self.thrd.moveToThread(thread)
+            self.sncd_thread = thread
+            thread.start()
 
     def add_start_function(self):
         try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
+            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(
+                0).widget()
             text_edit.insertPlainText("tello_binom.start()")
         except:
             pass
 
     def add_take_off_function(self):
         try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
+            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(
+                0).widget()
             text_edit.insertPlainText("tello_binom.take_off()")
         except:
             pass
 
     def add_land_function(self):
         try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
+            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(
+                0).widget()
             text_edit.insertPlainText("tello_binom.land()")
         except:
             pass
 
     def add_start_video_function(self):
         try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
+            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(
+                0).widget()
             text_edit.insertPlainText("tello_binom.start_video()")
         except:
             pass
