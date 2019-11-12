@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QTextEdit, QActi
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QObject, pyqtSlot
 from tello_binom import *
+import subprocess
 
 
 def hook(*args):
@@ -34,6 +35,7 @@ class MainWindow(QWidget):
         self.initUI()
 
     def initUI(self):
+        self.last_line = ""
         menu_bar = QMenuBar()
         menu_bar.setFont(self.menu_font)
 
@@ -94,6 +96,7 @@ class MainWindow(QWidget):
 
     def exec_ended(self):
         self.output_text_edit.setText(sys.stdout.getvalue())
+        print("\nProcess finished with exit code 0")
         self.thrd.thread().quit()
         self.thrd.thread().wait()
 
@@ -131,8 +134,9 @@ class MainWindow(QWidget):
             if os.path.exists(path):
                 self.save_file()
 
+            stdin = io.StringIO(self.input_text_edit.toPlainText())
             stdout = io.StringIO()
-            sys.stdout = stdout
+            sys.stdin, sys.stdout = stdin, stdout
             with open(path, encoding="utf-8") as file:
                 data = file.read()
 
@@ -143,6 +147,7 @@ class MainWindow(QWidget):
             self.thrd.moveToThread(thread)
             self.sncd_thread = thread
             thread.start()
+        self.input_text_edit.clear()
 
     def add_start_function(self):
         try:
@@ -171,6 +176,7 @@ class MainWindow(QWidget):
             text_edit.insertPlainText("start_video()\n")
         except:
             pass
+
 
 
 if __name__ == '__main__':
