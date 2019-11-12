@@ -4,7 +4,7 @@ import io
 from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QTextEdit, QAction, QWidget, \
     QVBoxLayout, QFileDialog, QHBoxLayout
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QObject, pyqtSlot
 from tello_binom import *
 
 
@@ -13,17 +13,22 @@ def hook(*args):
     print(*args)
 
 
-class CodeThread(QThread):
+class CodeThread(QObject):
     thrd_done = pyqtSignal()
     prnt_txt = pyqtSignal()
 
     def __init__(self, code, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.code = code
 
-    def run(self):
+        self.thrd = QThread()
+        self.moveToThread(self.thrd)
+        self.thrd.start()
+
+        self.run_code(code)
+
+    def run_code(self, code):
         try:
-            exec(self.code, globals())
+            exec(code, globals())
         except:
             print(sys.exc_info(), file=sys.stdout)
         finally:
@@ -126,23 +131,7 @@ class MainWindow(QWidget):
             with open(path, encoding="utf-8") as file:
                 data = file.read()
 
-            another_thread = CodeThread(data)
-            self.thrd_ = another_thread
-            another_thread.thrd_done.connect(self.exec_succesful)
-
-            t = QTimer()
-            self.t = t
-            t.timeout.connect(QApplication.processEvents)
-            t.start(100)
-
-            another_thread.start()
-
-    def exec_succesful(self):
-        self.output_text_edit.setText(self.stdout.getvalue())
-        QApplication.processEvents()
-        self.thrd_.wait()
-        self.thrd_.quit()
-        self.t.stop()
+            thrd = CodeThread(data)
 
     def add_start_function(self):
         try:
