@@ -2,15 +2,17 @@ import sys
 import os
 import io
 from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QTextEdit, QAction, QWidget, \
-    QVBoxLayout, QFileDialog, QHBoxLayout
+    QVBoxLayout, QFileDialog, QHBoxLayout, QPushButton, QSplitter
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QObject, pyqtSlot
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QObject, pyqtSlot, QRunnable, QThreadPool
 from tello_binom import *
+import subprocess
 
 
 def hook(*args):
     sys.stdout = sys.__stdout__
     print(*args)
+    sys.exit(-1)
 
 
 class CodeThread(QObject):
@@ -24,8 +26,9 @@ class CodeThread(QObject):
             exec(self.code, globals())
         except:
             print(sys.exc_info(), file=sys.stdout)
-        else:
+        finally:
             self.thread().finished.emit()
+
 
 class MainWindow(QWidget):
     def __init__(self, parent=None):
@@ -34,6 +37,7 @@ class MainWindow(QWidget):
         self.initUI()
 
     def initUI(self):
+        self.last_line = ""
         menu_bar = QMenuBar()
         menu_bar.setFont(self.menu_font)
 
@@ -49,10 +53,6 @@ class MainWindow(QWidget):
         file_menu.addAction(save_file_action)
         save_file_action.triggered.connect(self.save_file)
 
-        play_file_action = QAction("run", self)
-        options_bar.addAction(play_file_action)
-        play_file_action.triggered.connect(self.run_file)
-
         remove_tab_action = QAction("close current file", self)
         options_bar.addAction(remove_tab_action)
         remove_tab_action.triggered.connect(self.close_current_tab)
@@ -61,33 +61,57 @@ class MainWindow(QWidget):
         add_function_bar.addAction(start_function_action)
         start_function_action.triggered.connect(self.add_start_function)
 
-        take_off_function = QAction("take off", self)
-        add_function_bar.addAction(take_off_function)
-        take_off_function.triggered.connect(self.add_take_off_function)
+        take_off_action = QAction("take off", self)
+        add_function_bar.addAction(take_off_action)
+        take_off_action.triggered.connect(self.add_take_off_function)
+
+        land_action = QAction("land", self)
+        add_function_bar.addAction(land_action)
+        land_action.triggered.connect(self.add_land_function)
+
+        start_video_action = QAction("start video", self)
+        add_function_bar.addAction(start_video_action)
+        start_video_action.triggered.connect(self.add_start_video_function)
 
         self.files_tabs = QTabWidget()
         main_layout = QVBoxLayout()
         main_layout.addWidget(menu_bar, 0)
-        main_layout.addWidget(self.files_tabs, 1)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(1)
 
-        sub_layout = QHBoxLayout()
+        self.run_button = QPushButton(self)
+        self.run_button.setStyleSheet("background-color:green")
+        self.run_button.setText("run")
+        self.run_button.pressed.connect(self.run_file)
+
+        self.end_button = QPushButton(self)
+        self.end_button.setStyleSheet("background-color:red")
+        self.end_button.setText("end")
+        self.end_button.pressed.connect(self.terminate_thread)
+        self.end_button.hide()
+
+        sub_layout = QSplitter(Qt.Horizontal)
         self.input_text_edit = QTextEdit()
         self.output_text_edit = QTextEdit()
         self.output_text_edit.setReadOnly(True)
 
         sub_layout.addWidget(self.input_text_edit)
         sub_layout.addWidget(self.output_text_edit)
-        main_layout.addLayout(sub_layout)
 
+        main_splitter = QSplitter(Qt.Vertical)
+        main_splitter.addWidget(self.files_tabs)
+        main_splitter.addWidget(sub_layout)
+        main_layout.addWidget(main_splitter)
+        main_layout.addWidget(self.run_button)
+        main_layout.addWidget(self.end_button)
         self.tabs = []
         self.setLayout(main_layout)
 
     def exec_ended(self):
         self.output_text_edit.setText(sys.stdout.getvalue())
-        self.thrd.thread().quit()
-        self.thrd.thread().wait()
+        print("\nProcess finished with exit code 0")
+        self.run_button.show()
+        self.end_button.hide()
 
     def create_and_open_new_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -119,12 +143,16 @@ class MainWindow(QWidget):
 
     def run_file(self):
         if self.tabs:
+            self.input_text_edit.clear()
+            self.run_button.hide()
+            self.end_button.show()
             path = self.tabs[self.files_tabs.currentIndex()].file_path
             if os.path.exists(path):
                 self.save_file()
 
-            stdout = io.StringIO()
-            sys.stdout = stdout
+            stdin = io.StringIO(self.input_text_edit.toPlainText())
+            self.stdout = io.StringIO()
+            sys.stdin, sys.stdout = stdin, self.stdout
             with open(path, encoding="utf-8") as file:
                 data = file.read()
 
@@ -133,40 +161,44 @@ class MainWindow(QWidget):
             thread.started.connect(self.thrd.run_code)
             thread.finished.connect(self.exec_ended)
             self.thrd.moveToThread(thread)
-            self.sncd_thread = thread
             thread.start()
+
+
+
+    def terminate_thread(self):
+        if self.thrd.thread().isFinished():
+            self.thrd.thread().setTerminationEnabled(True)
+            self.thrd.thread().terminate()
+            self.exec_ended()
 
     def add_start_function(self):
         try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(
-                0).widget()
-            text_edit.insertPlainText("tello_binom.start()")
+            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
+            text_edit.insertPlainText("start()\n")
         except:
             pass
 
     def add_take_off_function(self):
         try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(
-                0).widget()
-            text_edit.insertPlainText("tello_binom.take_off()")
+            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
+            text_edit.insertPlainText("take_off()\n")
         except:
             pass
 
     def add_land_function(self):
         try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(
-                0).widget()
-            text_edit.insertPlainText("tello_binom.land()")
+            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
+            text_edit.insertPlainText("land()\n")
+        except:
+
+            pass
+    def add_start_video_function(self):
+        try:
+            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
+            text_edit.insertPlainText("start_video()\n")
         except:
             pass
 
-    def add_start_video_function(self):
-        try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(
-                0).widget()
-            text_edit.insertPlainText("tello_binom.start_video()")
-        except:
-            pass
 
 
 if __name__ == '__main__':
