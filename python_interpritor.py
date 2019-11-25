@@ -1,14 +1,13 @@
-import sys
 import os
 import io
 from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QTextEdit, QAction, QWidget, \
-    QVBoxLayout, QFileDialog, QHBoxLayout, QPushButton, QSplitter
+    QVBoxLayout, QFileDialog, QPushButton, QSplitter
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QObject, pyqtSlot, QRunnable, QThreadPool
-# from tello_binom import *
-import subprocess
+from PyQt5.QtCore import Qt, QThread, QObject, pyqtSlot
+from tello_binom import *
+import traceback
 
-__end_flag = True
+_end_flag = True
 
 
 def hook(*args):
@@ -25,12 +24,11 @@ class CodeThread(QObject):
     @pyqtSlot()
     def run_code(self):
         try:
-            print(globals())
             exec(self.code, globals())
         except AssertionError:
-            pass
+            _end_flag = True
         except:
-            print(sys.exc_info(), file=sys.stdout)
+            traceback.print_exc(file=sys.stdout)
         finally:
             self.thread().finished.emit()
 
@@ -113,6 +111,7 @@ class MainWindow(QWidget):
         self.setLayout(main_layout)
 
     def exec_ended(self):
+        self.thrd.thread().quit()
         self.output_text_edit.setText(sys.stdout.getvalue())
         print("\nProcess finished with exit code 0")
         self.run_button.show()
@@ -173,20 +172,21 @@ class MainWindow(QWidget):
         with open(path, encoding="utf-8") as file:
             for i in file:
                 srng = i.rstrip() + "\n"
-                if srng.endswith(":\n"):
-                    res += srng + " " * (len(srng.lstrip()) - len(srng) + 4) + "assert __end_flag, ('Ended code by user')\n"
+                if srng.lstrip().startswith('from') or srng.lstrip().startswith('import'):
+                    continue
+                elif srng.endswith(":\n"):
+                    res += srng + " " * (len(
+                        srng) - len(
+                        srng.lstrip()) + 4) + "assert _end_flag, ('Остановленно пользователем')\n"
                 else:
-                    res += srng + " " * (len(srng.lstrip()) - len(srng)) + "assert __end_flag, ('Ended code by user')\n"
+                    res += srng + " " * (len(
+                        srng) - len(
+                        srng.lstrip())) + "assert _end_flag, ('Остановленно пользователем')\n"
         return res
 
     def terminate_thread(self):
-        global __end_flag
-        if not self.thrd.thread().isFinished():
-            __end_flag = False
-            self.thrd.thread().quit()
-            del self.thrd
-            self.exec_ended()
-            __end_flag = True
+        global _end_flag
+        _end_flag = False
 
     def add_start_function(self):
         try:
