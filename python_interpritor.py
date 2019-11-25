@@ -25,6 +25,7 @@ class CodeThread(QObject):
     @pyqtSlot()
     def run_code(self):
         try:
+            print(globals())
             exec(self.code, globals())
         except AssertionError:
             pass
@@ -161,7 +162,7 @@ class MainWindow(QWidget):
             data = self.reformat_code(path)
 
             self.thrd = CodeThread(data)
-            thread = QThread()
+            thread = QThread(self.thrd)
             thread.started.connect(self.thrd.run_code)
             thread.finished.connect(self.exec_ended)
             self.thrd.moveToThread(thread)
@@ -172,7 +173,10 @@ class MainWindow(QWidget):
         with open(path, encoding="utf-8") as file:
             for i in file:
                 srng = i.rstrip() + "\n"
-                res += " " * (len(srng.lstrip()) - len(srng)) + "assert __end_flag, ('Ended code by user')\n"
+                if srng.endswith(":\n"):
+                    res += srng + " " * (len(srng.lstrip()) - len(srng) + 4) + "assert __end_flag, ('Ended code by user')\n"
+                else:
+                    res += srng + " " * (len(srng.lstrip()) - len(srng)) + "assert __end_flag, ('Ended code by user')\n"
         return res
 
     def terminate_thread(self):
@@ -180,7 +184,6 @@ class MainWindow(QWidget):
         if not self.thrd.thread().isFinished():
             __end_flag = False
             self.thrd.thread().quit()
-            self.thrd.thread().wait()
             del self.thrd
             self.exec_ended()
             __end_flag = True
