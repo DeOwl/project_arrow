@@ -5,8 +5,10 @@ from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QTextEdit, QActi
     QVBoxLayout, QFileDialog, QHBoxLayout, QPushButton, QSplitter
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QObject, pyqtSlot, QRunnable, QThreadPool
-from tello_binom import *
+# from tello_binom import *
 import subprocess
+
+__end_flag = True
 
 
 def hook(*args):
@@ -24,6 +26,8 @@ class CodeThread(QObject):
     def run_code(self):
         try:
             exec(self.code, globals())
+        except AssertionError:
+            pass
         except:
             print(sys.exc_info(), file=sys.stdout)
         finally:
@@ -143,7 +147,7 @@ class MainWindow(QWidget):
 
     def run_file(self):
         if self.tabs:
-            self.input_text_edit.clear()
+            self.output_text_edit.clear()
             self.run_button.hide()
             self.end_button.show()
             path = self.tabs[self.files_tabs.currentIndex()].file_path
@@ -153,8 +157,8 @@ class MainWindow(QWidget):
             stdin = io.StringIO(self.input_text_edit.toPlainText())
             self.stdout = io.StringIO()
             sys.stdin, sys.stdout = stdin, self.stdout
-            with open(path, encoding="utf-8") as file:
-                data = file.read()
+
+            data = self.reformat_code(path)
 
             self.thrd = CodeThread(data)
             thread = QThread()
@@ -163,13 +167,23 @@ class MainWindow(QWidget):
             self.thrd.moveToThread(thread)
             thread.start()
 
-
+    def reformat_code(self, path):
+        res = ""
+        with open(path, encoding="utf-8") as file:
+            for i in file:
+                srng = i.rstrip() + "\n"
+                res += " " * (len(srng.lstrip()) - len(srng)) + "assert __end_flag, ('Ended code by user')\n"
+        return res
 
     def terminate_thread(self):
-        if self.thrd.thread().isFinished():
-            self.thrd.thread().setTerminationEnabled(True)
-            self.thrd.thread().terminate()
+        global __end_flag
+        if not self.thrd.thread().isFinished():
+            __end_flag = False
+            self.thrd.thread().quit()
+            self.thrd.thread().wait()
+            del self.thrd
             self.exec_ended()
+            __end_flag = True
 
     def add_start_function(self):
         try:
@@ -192,13 +206,13 @@ class MainWindow(QWidget):
         except:
 
             pass
+
     def add_start_video_function(self):
         try:
             text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
             text_edit.insertPlainText("start_video()\n")
         except:
             pass
-
 
 
 if __name__ == '__main__':
