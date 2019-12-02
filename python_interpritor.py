@@ -82,7 +82,7 @@ class _VideoStream:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 height, width, channel = frame.shape
                 cv2.resize(frame, (640, 480), frame)
-                window.video_out.setPixmap(QPixmap.fromImage(QImage(frame, width, height, QImage.Format_RGB888).rgbSwapped()))
+                window.video_out.setPixmap(QPixmap.fromImage(QImage(frame, width, height, QImage.Format_RGB888)))
 
 
     def stop(self):
