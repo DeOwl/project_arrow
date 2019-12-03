@@ -1,3 +1,4 @@
+# encoding:utf-8
 import os
 import io
 from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QTextEdit, QAction, QWidget, \
@@ -125,7 +126,6 @@ def stop_video():
 
 def get_video_frame():
     """ Gets the last video frame from the video stream
-
         Returns:
             numpy.ndarray: The last frame the video stream reads
     """
@@ -161,6 +161,7 @@ class CodeThread(QObject):
 class MainWindow(QWidget):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
+        self.setWindowTitle("Среда разработки для квадракоптеров Tello Edu")
         self.menu_font = QFont("Arial", 10)
         self.setGeometry(0, 0, GetSystemMetrics(0) * 0.66, GetSystemMetrics(1) * 0.66)
         self.initUI()
@@ -170,35 +171,35 @@ class MainWindow(QWidget):
         menu_bar = QMenuBar()
         menu_bar.setFont(self.menu_font)
 
-        file_menu = menu_bar.addMenu("File")
-        options_bar = menu_bar.addMenu("options")
-        add_function_bar = menu_bar.addMenu("add function")
+        file_menu = menu_bar.addMenu("Файл")
+        options_bar = menu_bar.addMenu("Опции")
+        add_function_bar = menu_bar.addMenu("Функции дрона")
 
-        new_file_action = QAction("new file", self)
+        new_file_action = QAction("новый файл", self)
         file_menu.addAction(new_file_action)
         new_file_action.triggered.connect(self.create_and_open_new_file)
 
-        save_file_action = QAction("save file", self)
+        save_file_action = QAction("сохранить файл", self)
         file_menu.addAction(save_file_action)
         save_file_action.triggered.connect(self.save_file)
 
-        remove_tab_action = QAction("close current file", self)
+        remove_tab_action = QAction("закрыть данный файл", self)
         options_bar.addAction(remove_tab_action)
         remove_tab_action.triggered.connect(self.close_current_tab)
 
-        start_function_action = QAction("start", self)
+        start_function_action = QAction("start()", self)
         add_function_bar.addAction(start_function_action)
         start_function_action.triggered.connect(self.add_start_function)
 
-        take_off_action = QAction("take off", self)
+        take_off_action = QAction("takeoff()", self)
         add_function_bar.addAction(take_off_action)
         take_off_action.triggered.connect(self.add_take_off_function)
 
-        land_action = QAction("land", self)
+        land_action = QAction("land()", self)
         add_function_bar.addAction(land_action)
         land_action.triggered.connect(self.add_land_function)
 
-        start_video_action = QAction("start video", self)
+        start_video_action = QAction("start_video()", self)
         add_function_bar.addAction(start_video_action)
         start_video_action.triggered.connect(self.add_start_video_function)
 
@@ -216,7 +217,8 @@ class MainWindow(QWidget):
         self.video_out.setMinimumHeight(480)
         self.video_out.setMaximumWidth(640)
         self.video_out.setMinimumWidth(640)
-        self.video_out.setPixmap(QPixmap.fromImage(QImage("video_background.png")))
+        self.video_out.setPixmap(QPixmap.fromImage(
+            QImage("E:/video_background.png")))
 
         sub_layout = QHBoxLayout()
         sub_layout.addWidget(self.files_tabs, 0)
@@ -228,12 +230,12 @@ class MainWindow(QWidget):
 
         self.run_button = QPushButton(self)
         self.run_button.setStyleSheet("background-color:green")
-        self.run_button.setText("run")
+        self.run_button.setText("Запустить")
         self.run_button.pressed.connect(self.run_file)
 
         self.end_button = QPushButton(self)
         self.end_button.setStyleSheet("background-color:red")
-        self.end_button.setText("end")
+        self.end_button.setText("Завершить")
         self.end_button.pressed.connect(self.terminate_thread)
         self.end_button.hide()
 
@@ -257,13 +259,15 @@ class MainWindow(QWidget):
     def exec_ended(self):
         self.thrd.thread().quit()
         self.output_text_edit.setText(sys.stdout.getvalue())
-        print("\nProcess finished with exit code 0")
+        stop_video()
+        print("\nПрограмма завершила свою работу")
+
         self.run_button.show()
         self.end_button.hide()
 
     def create_and_open_new_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "open/new file", "", "Py(*.py)")
+            self, "новый файл", "", "Py(*.py)")
         if file_path:
             with open(file_path, "w", encoding="UTF-8") as file:
                 pass
@@ -375,3 +379,4 @@ if __name__ == '__main__':
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
+    
