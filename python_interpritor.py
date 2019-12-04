@@ -218,7 +218,7 @@ class MainWindow(QWidget):
         self.video_out.setMaximumWidth(640)
         self.video_out.setMinimumWidth(640)
         self.video_out.setPixmap(QPixmap.fromImage(
-            QImage("E:/video_background.png")))
+            QImage("video_background.png")))
 
         sub_layout = QHBoxLayout()
         sub_layout.addWidget(self.files_tabs, 0)
@@ -288,7 +288,9 @@ class MainWindow(QWidget):
         self.files_tabs.addTab(self.tabs[-1], file_path.split("/")[-1])
 
     def close_current_tab(self):
-        self.files_tabs.removeTab(self.files_tabs.currentIndex())
+        if self.tabs:
+            self.files_tabs.removeTab(self.files_tabs.currentIndex())
+            self.tabs.pop(self.files_tabs.currentIndex())
 
     def save_file(self):
         if self.tabs:
@@ -323,18 +325,18 @@ class MainWindow(QWidget):
         res = ""
         with open(path, encoding="utf-8") as file:
             for i in file:
-                srng = i.rstrip() + "\n"
-                if srng.lstrip().startswith('from') or srng.lstrip().startswith('import'):
-                    continue
-                elif srng.endswith(":\n"):
-                    res += srng + " " * (len(
-                        srng) - len(
-                        srng.lstrip()) + 4) + "assert _end_flag, ('Остановленно пользователем')\n"
-                else:
-                    res += srng + " " * (len(
-                        srng) - len(
-                        srng.lstrip())) + "assert _end_flag, ('Остановленно пользователем')\n"
-        print(res)
+                if i.strip():
+                    srng = i.rstrip() + "\n"
+                    if srng.lstrip().startswith('from') or srng.lstrip().startswith('import'):
+                        res += srng
+                    elif srng.endswith(":\n"):
+                        res += srng + " " * (len(
+                            srng) - len(
+                            srng.lstrip()) + 4) + "assert _end_flag, ('Остановленно пользователем')\n"
+                    else:
+                        res += srng + " " * (len(
+                            srng) - len(
+                            srng.lstrip())) + "assert _end_flag, ('Остановленно пользователем')\n"
         return res
 
     def terminate_thread(self):
