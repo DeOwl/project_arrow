@@ -174,6 +174,7 @@ class MainWindow(QWidget):
         file_menu = menu_bar.addMenu("Файл")
         options_bar = menu_bar.addMenu("Опции")
         add_function_bar = menu_bar.addMenu("Функции дрона")
+        help_menu = menu_bar.addMenu("Помощь")
 
         new_file_action = QAction("новый файл", self)
         file_menu.addAction(new_file_action)
@@ -202,6 +203,17 @@ class MainWindow(QWidget):
         start_video_action = QAction("start_video()", self)
         add_function_bar.addAction(start_video_action)
         start_video_action.triggered.connect(self.add_start_video_function)
+
+        flip_forward_action = QAction("flip_forward()", self)
+        add_function_bar.addAction(flip_forward_action)
+        flip_forward_action.triggered.connect(self.add_flip_forward_function)
+
+        fly_up_action = QAction("up(cm)", self)
+        add_function_bar.addAction(fly_up_action)
+        fly_up_action.triggered.connect(self.add_fly_up_function)
+
+        video_help = QAction("Видеоуроки", self)
+        help_menu.addAction(video_help)
 
         self.files_tabs = QTabWidget()
         main_layout = QVBoxLayout()
@@ -373,6 +385,25 @@ class MainWindow(QWidget):
         except:
             pass
 
+    def add_flip_forward_function(self):
+        try:
+            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
+            text_edit.insertPlainText("flip_forward()\n")
+        except:
+            pass
+
+    def add_fly_up_function(self):
+        try:
+            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
+            text_edit.insertPlainText("up(20)\n")
+        except:
+            pass
+
+    def add_function(self, text):
+        pass
+
+    def closeEvent(self, QCloseEvent):
+        self.destroy()
 
 
 if __name__ == '__main__':
@@ -381,4 +412,4 @@ if __name__ == '__main__':
     window = MainWindow()
     window.show()
     sys.exit(app.exec())
-    
+    quit()
