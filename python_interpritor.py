@@ -1,17 +1,189 @@
 # encoding:utf-8
 import os
 import io
-from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QTextEdit, QAction, QWidget, \
+from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QPlainTextEdit, QAction, QWidget, \
     QVBoxLayout, QFileDialog, QPushButton, QSplitter, QLabel, QMenu, QHBoxLayout
-from PyQt5.QtGui import QFont, QPixmap, QImage
-from PyQt5.QtCore import Qt, QThread, QObject, pyqtSlot, QEvent
+from PyQt5.QtGui import QFont, QPixmap, QImage, QSyntaxHighlighter, QTextCharFormat, QColor, QPainter
+from PyQt5.QtCore import Qt, QThread, QObject, pyqtSlot, QEvent, QRegularExpression, QRegExp, QRect
 from tello_binom import *
-from tello_binom import _VideoStream, _video, start_video, stop_video, get_video_frame
 import traceback
 import sys
 import threading
 import cv2
 from win32api import GetSystemMetrics
+
+
+def format_code(color, style=''):
+    """Return a QTextCharFormat with the given attributes.
+    """
+    _color = QColor()
+    _color.setNamedColor(color)
+
+    _format = QTextCharFormat()
+    _format.setForeground(_color)
+    if 'bold' in style:
+        _format.setFontWeight(QFont.DemiBold)
+    if 'italic' in style:
+        _format.setFontItalic(True)
+
+    return _format
+
+
+STYLES = {
+    'keyword': format_code('blue'),
+    'operator': format_code('black'),
+    'brace': format_code('darkGray'),
+    'defclass': format_code('black', "bold"),
+    'string': format_code('green'),
+    'string2': format_code('darkMagenta'),
+    'comment': format_code('grey', "italic"),
+    'self': format_code('purple'),
+    'numbers': format_code('darkblue'),
+}
+
+
+class MyHighlighter(QSyntaxHighlighter):
+    keywords = [
+        'and', 'assert', 'break', 'class', 'continue', 'def',
+        'del', 'elif', 'else', 'except', 'exec', 'finally',
+        'for', 'from', 'global', 'if', 'import', 'in',
+        'is', 'lambda', 'not', 'or', 'pass', 'print',
+        'raise', 'return', 'try', 'while', 'yield',
+        'None', 'True', 'False', "range",
+    ]
+
+    # Python operators
+    operators = [
+        '=',
+        # Comparison
+        '==', '!=', '<', '<=', '>', '>=',
+        # Arithmetic
+        '\+', '-', '\*', '/', '//', '\%', '\*\*',
+        # In-place
+        '\+=', '-=', '\*=', '/=', '\%=',
+        # Bitwise
+        '\^', '\|', '\&', '\~', '>>', '<<',
+    ]
+
+    # Python braces
+    braces = [
+        '\{', '\}', '\(', '\)', '\[', '\]',
+    ]
+
+
+    def highlightBlock(self, text):
+        self.tri_single = (QRegExp("'''"), 1, STYLES['string2'])
+        self.tri_double = (QRegExp('"""'), 2, STYLES['string2'])
+
+        rules = []
+
+        # Keyword, operator, and brace rules
+        rules += [(r'\b%s\b' % w, 0, STYLES['keyword'])
+                  for w in MyHighlighter.keywords]
+        rules += [(r'%s' % o, 0, STYLES['operator'])
+                  for o in MyHighlighter.operators]
+        rules += [(r'%s' % b, 0, STYLES['brace'])
+                  for b in MyHighlighter.braces]
+
+        # All other rules
+        rules += [
+            # 'self'
+            (r'\bself\b', 0, STYLES['self']),
+
+            # Double-quoted string, possibly containing escape sequences
+            (r'"[^"\\]*(\\.[^"\\]*)*"', 0, STYLES['string']),
+            # Single-quoted string, possibly containing escape sequences
+            (r"'[^'\\]*(\\.[^'\\]*)*'", 0, STYLES['string']),
+
+            # 'class' followed by an identifier
+            (r'\bclass\b\s*(\w+)', 1, STYLES['defclass']),
+
+            # From '#' until a newline
+            (r'#[^\n]*', 0, STYLES['comment']),
+
+            # Numeric literals
+            (r'\b[+-]?[0-9]+[lL]?\b', 0, STYLES['numbers']),
+            (r'\b[+-]?0[xX][0-9A-Fa-f]+[lL]?\b', 0, STYLES['numbers']),
+            (r'\b[+-]?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?\b', 0, STYLES['numbers']),
+        ]
+
+        # Build a QRegExp for each pattern
+        self.rules = [(QRegExp(pat), index, fmt)
+                      for (pat, index, fmt) in rules]
+
+        char_format = QTextCharFormat()
+        char_format.setFontWeight(QFont.Bold)
+        char_format.setForeground(Qt.darkMagenta)
+
+        for expression, nth, format in self.rules:
+            index = expression.indexIn(text, 0)
+
+            while index >= 0:
+                # We actually want the index of the nth match
+                index = expression.pos(nth)
+                length = len(expression.cap(nth))
+                self.setFormat(index, length, format)
+                index = expression.indexIn(text, index + length)
+
+
+class NumberBar(QWidget):
+    def __init__(self, parent, window):
+        super().__init__(window)
+        self.editor = parent
+        self.visible = True
+        self.editor.blockCountChanged.connect(self.update_width)
+        self.editor.updateRequest.connect(self.update_on_scroll)
+        self.resize(9, parent.height())
+        self.update_width('1')
+        self.window_ = window
+
+    def update_on_scroll(self, rect, scroll):
+        if self.isVisible():
+            if scroll:
+                self.scroll(0, scroll)
+            else:
+                self.update()
+
+    def update_width(self, string):
+        width = self.fontMetrics().width(str(string)) + 8
+        if self.width() != width:
+            self.setFixedWidth(width)
+
+    def paintEvent(self, event):
+        self.resize(self.width(), self.editor.height())
+        if self.isVisible():
+            block = self.editor.firstVisibleBlock()
+            height = self.fontMetrics().height()
+            number = block.blockNumber()
+            painter = QPainter(self)
+            painter.fillRect(event.rect(), Qt.lightGray)
+            painter.drawRect(0, 0, event.rect().width() - 1, event.rect().height() - 1)
+            font = painter.font()
+
+            current_block = self.editor.textCursor().block().blockNumber() + 1
+
+            condition = True
+            while block.isValid() and condition:
+                block_geometry = self.editor.blockBoundingGeometry(block)
+                offset = self.editor.contentOffset()
+                block_top = block_geometry.translated(offset).top()
+                number += 1
+
+                rect = QRect(0, block_top + 2, self.width() - 5, height)
+
+                if number == current_block:
+                    font.setBold(True)
+                else:
+                    font.setBold(False)
+
+                painter.setFont(font)
+                painter.drawText(rect, Qt.AlignRight, '%i' % number)
+
+                if block_top > event.rect().bottom():
+                    condition = False
+
+                block = block.next()
+            painter.end()
 
 
 class _VideoStream:
@@ -76,13 +248,14 @@ class _VideoStream:
                 pygame.display.update()
 
     def _pyqt5_video_loop(self, stop_event):
+        print("I")
         cap = cv2.VideoCapture("udp://0.0.0.0:11111", cv2.CAP_FFMPEG)
         while not stop_event.is_set():
             ret, frame = cap.read()
             if ret == True:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 height, width, channel = frame.shape
-                cv2.resize(frame, (640, 480), frame)
+                cv2.resize(frame, window.video_out.size(), frame)
                 window.video_out.setPixmap(QPixmap.fromImage(QImage(frame, width, height, QImage.Format_RGB888)))
 
 
@@ -105,7 +278,6 @@ class _VideoStream:
 
 # Global video instance
 _video = None
-
 
 def start_video():
     """ Starts the video stream """
@@ -134,10 +306,7 @@ def get_video_frame():
         return _video.get_frame()
 
 
-def hook(*args):
-    sys.stdout = sys.__stdout__
-    print(*args)
-    sys.exit(-1)
+_end_flag = True
 
 
 class CodeThread(QObject):
@@ -163,57 +332,14 @@ class MainWindow(QWidget):
         super(MainWindow, self).__init__(parent)
         self.setWindowTitle("Среда разработки для квадракоптеров Tello Edu")
         self.menu_font = QFont("Arial", 10)
+        self.code_button_font = QFont("Arial", 16)
         self.setGeometry(0, 0, GetSystemMetrics(0) * 0.66, GetSystemMetrics(1) * 0.66)
         self.initUI()
 
     def initUI(self):
-        self.last_line = ""
         menu_bar = QMenuBar()
         menu_bar.setFont(self.menu_font)
-
-        file_menu = menu_bar.addMenu("Файл")
-        options_bar = menu_bar.addMenu("Опции")
-        add_function_bar = menu_bar.addMenu("Функции дрона")
-        help_menu = menu_bar.addMenu("Помощь")
-
-        new_file_action = QAction("новый файл", self)
-        file_menu.addAction(new_file_action)
-        new_file_action.triggered.connect(self.create_and_open_new_file)
-
-        save_file_action = QAction("сохранить файл", self)
-        file_menu.addAction(save_file_action)
-        save_file_action.triggered.connect(self.save_file)
-
-        remove_tab_action = QAction("закрыть данный файл", self)
-        options_bar.addAction(remove_tab_action)
-        remove_tab_action.triggered.connect(self.close_current_tab)
-
-        start_function_action = QAction("start()", self)
-        add_function_bar.addAction(start_function_action)
-        start_function_action.triggered.connect(self.add_start_function)
-
-        take_off_action = QAction("takeoff()", self)
-        add_function_bar.addAction(take_off_action)
-        take_off_action.triggered.connect(self.add_take_off_function)
-
-        land_action = QAction("land()", self)
-        add_function_bar.addAction(land_action)
-        land_action.triggered.connect(self.add_land_function)
-
-        start_video_action = QAction("start_video()", self)
-        add_function_bar.addAction(start_video_action)
-        start_video_action.triggered.connect(self.add_start_video_function)
-
-        flip_forward_action = QAction("flip_forward()", self)
-        add_function_bar.addAction(flip_forward_action)
-        flip_forward_action.triggered.connect(self.add_flip_forward_function)
-
-        fly_up_action = QAction("up(cm)", self)
-        add_function_bar.addAction(fly_up_action)
-        fly_up_action.triggered.connect(self.add_fly_up_function)
-
-        video_help = QAction("Видеоуроки", self)
-        help_menu.addAction(video_help)
+        self.setup_menu(menu_bar)
 
         self.files_tabs = QTabWidget()
         main_layout = QVBoxLayout()
@@ -222,45 +348,44 @@ class MainWindow(QWidget):
         main_layout.setSpacing(1)
         self.files_tabs.setTabsClosable(True)
         self.files_tabs.tabCloseRequested.connect(self.close_current_tab)
-        self.files_tabs.resize(self.size().width(), 500)
 
         self.video_out = QLabel(self)
         self.video_out.setMaximumHeight(480)
         self.video_out.setMinimumHeight(480)
         self.video_out.setMaximumWidth(640)
         self.video_out.setMinimumWidth(640)
-        self.video_out.setPixmap(QPixmap.fromImage(
-            QImage("video_background.png")))
+        self.video_out.setPixmap(QPixmap.fromImage(QImage("data/textures/video_background.png")))
 
         sub_layout = QHBoxLayout()
         sub_layout.addWidget(self.files_tabs, 0)
         sub_layout.addWidget(self.video_out, 1)
-        sub_layout.setSpacing(1)
 
-        widget1 = QWidget()
-        widget1.setLayout(sub_layout)
+        sub_layout_widget = QWidget(self)
+        sub_layout_widget.setLayout(sub_layout)
 
         self.run_button = QPushButton(self)
         self.run_button.setStyleSheet("background-color:green")
         self.run_button.setText("Запустить")
         self.run_button.pressed.connect(self.run_file)
+        self.run_button.setFont(self.code_button_font)
 
         self.end_button = QPushButton(self)
         self.end_button.setStyleSheet("background-color:red")
         self.end_button.setText("Завершить")
         self.end_button.pressed.connect(self.terminate_thread)
+        self.end_button.setFont(self.code_button_font)
         self.end_button.hide()
 
         sub_splitter = QSplitter(Qt.Horizontal)
-        self.input_text_edit = QTextEdit()
-        self.output_text_edit = QTextEdit()
+        self.input_text_edit = QPlainTextEdit()
+        self.output_text_edit = QPlainTextEdit()
         self.output_text_edit.setReadOnly(True)
 
         sub_splitter.addWidget(self.input_text_edit)
         sub_splitter.addWidget(self.output_text_edit)
 
         main_splitter = QSplitter(Qt.Vertical)
-        main_splitter.addWidget(widget1)
+        main_splitter.addWidget(sub_layout_widget)
         main_splitter.addWidget(sub_splitter)
         main_layout.addWidget(main_splitter)
         main_layout.addWidget(self.run_button)
@@ -268,14 +393,137 @@ class MainWindow(QWidget):
         self.tabs = []
         self.setLayout(main_layout)
 
+    def setup_menu(self, menu_bar):
+        file_menu = menu_bar.addMenu("Файл")
+        file_menu.setToolTipsVisible(True)
+        add_move_command_bar = menu_bar.addMenu("Команды управления")
+        add_move_command_bar.setToolTipsVisible(True)
+        add_move_3d_bar = menu_bar.addMenu("3d-движение")
+        add_move_3d_bar.setToolTipsVisible(True)
+        help_menu = menu_bar.addMenu("Помощь")
+        help_menu.setToolTipsVisible(True)
+
+        # file_actions
+        new_file_action = QAction("Создать", self)
+        file_menu.addAction(new_file_action)
+        new_file_action.triggered.connect(self.create_and_open_new_file)
+
+        open_file_action = QAction("Открыть", self)
+        file_menu.addAction(open_file_action)
+        open_file_action.triggered.connect(self.open_file)
+
+        save_file_action = QAction("Сохранить", self)
+        file_menu.addAction(save_file_action)
+        save_file_action.triggered.connect(self.save_file)
+
+        video_help = QAction("Видеоуроки", self)
+        help_menu.addAction(video_help)
+
+        # move_actions
+
+        start_function_action = QAction("start()", self)
+        add_move_command_bar.addAction(start_function_action)
+        start_function_action.setToolTip("Вход в режим исполнения команд")
+        start_function_action.triggered.connect(lambda: self.add_function("start()"))
+
+        take_off_action = QAction("takeoff()", self)
+        add_move_command_bar.addAction(take_off_action)
+        take_off_action.setToolTip("Автоматический взлет и стабилизация")
+        take_off_action.triggered.connect(lambda: self.add_function("takeoff()"))
+
+        land_action = QAction("land()", self)
+        add_move_command_bar.addAction(land_action)
+        land_action.setToolTip("Автоматическая посадка")
+        land_action.triggered.connect(lambda: self.add_function("land()"))
+
+        start_video_action = QAction("start_video()", self)
+        add_move_command_bar.addAction(start_video_action)
+        start_function_action.setToolTip("Включить видеопоток с фронтальной камеры")
+        start_video_action.triggered.connect(lambda: self.add_function("start_video()"))
+
+        end_video_action = QAction("stop_video()", self)
+        add_move_command_bar.addAction(end_video_action)
+        end_video_action.setToolTip("Выключить видеопоток с фронтальной камеры")
+        end_video_action.triggered.connect(lambda: self.add_function("stop_video()"))
+
+        stop_action = QAction("stop()", self)
+        add_move_command_bar.addAction(stop_action)
+        stop_action.setToolTip("Экстренная немедленная остановка моторов")
+        stop_action.triggered.connect(lambda: self.add_function("stop()"))
+
+        fly_up_action = QAction("up(x)", self)
+        add_move_command_bar.addAction(fly_up_action)
+        fly_up_action.setToolTip("Движение вверх на х см (значение х от 20 до 500)")
+        fly_up_action.triggered.connect(lambda: self.add_function("up(20)"))
+
+        fly_down_action = QAction("down(x)", self)
+        add_move_command_bar.addAction(fly_down_action)
+        fly_down_action.setToolTip("Движение вниз на х см (значение х от 20 до 500)")
+        fly_down_action.triggered.connect(lambda: self.add_function("down(20)"))
+
+        fly_left_action = QAction("left(x)", self)
+        add_move_command_bar.addAction(fly_left_action)
+        fly_left_action.setToolTip("Движение влево на х см (значение х от 20 до 500)")
+        fly_left_action.triggered.connect(lambda: self.add_function("left(20)"))
+
+        fly_right_action = QAction("right(x)", self)
+        add_move_command_bar.addAction(fly_right_action)
+        fly_right_action.setToolTip("Движение вправо на х см (значение х от 20 до 500)")
+        fly_right_action.triggered.connect(lambda: self.add_function("right(20)"))
+
+        fly_forward_action = QAction("forward(x)", self)
+        add_move_command_bar.addAction(fly_forward_action)
+        fly_forward_action.setToolTip("Движение вперед на х см (значение х от 20 до 500)")
+        fly_forward_action.triggered.connect(lambda: self.add_function("forward(20)"))
+
+        fly_backward_action = QAction("backward(x)", self)
+        add_move_command_bar.addAction(fly_backward_action)
+        fly_backward_action.setToolTip("Движение назад на х см (значение х от 20 до 500)")
+        fly_backward_action.triggered.connect(lambda: self.add_function("backward(20)"))
+
+        turn_clockwise_action = QAction("clockwise(x)", self)
+        add_move_command_bar.addAction(turn_clockwise_action)
+        turn_clockwise_action.setToolTip("Поворот на х градусов по часовой стрелке (значение х от 1 до 360)")
+        turn_clockwise_action.triggered.connect(lambda: self.add_function("clockwise(20)"))
+
+        turn_anticlockwise_action = QAction("anticlockwise(x)", self)
+        add_move_command_bar.addAction(turn_anticlockwise_action)
+        turn_anticlockwise_action.setToolTip("Поворот на х градусов против часовой стрелке (значение х от 1 до 360)")
+        turn_anticlockwise_action.triggered.connect(lambda: self.add_function("anticlockwise(20)"))
+
+        flip_forward_action = QAction("flip_forward()", self)
+        add_move_command_bar.addAction(flip_forward_action)
+        flip_forward_action.setToolTip("переворот вперед относительно передних моторов")
+        flip_forward_action.triggered.connect(lambda: self.add_function("flip_forward()"))
+
+        flip_backward_action = QAction("flip_backward()", self)
+        add_move_command_bar.addAction(flip_backward_action)
+        flip_backward_action.setToolTip("переворот назад относительно задних моторов")
+        flip_backward_action.triggered.connect(lambda: self.add_function("flip_backward()"))
+
+        flip_left_action = QAction("flip_left()", self)
+        add_move_command_bar.addAction(flip_left_action)
+        flip_left_action.setToolTip("переворот влево относительно левых моторов")
+        flip_left_action.triggered.connect(lambda: self.add_function("flip_left()"))
+
+        flip_right_action = QAction("flip_right()", self)
+        add_move_command_bar.addAction(flip_right_action)
+        flip_right_action.setToolTip("переворот вправо относительно правых моторов")
+        flip_right_action.triggered.connect(lambda: self.add_function("flip_right()"))
+
     def exec_ended(self):
         self.thrd.thread().quit()
-        self.output_text_edit.setText(sys.stdout.getvalue())
+        self.output_text_edit.setPlainText(sys.stdout.getvalue())
         stop_video()
         print("\nПрограмма завершила свою работу")
-
+        self.video_out.setPixmap(QPixmap.fromImage(QImage("data/textures/video_background.png")))
         self.run_button.show()
         self.end_button.hide()
+
+    def terminate_thread(self):
+        global _end_flag
+        if _end_flag:
+            _end_flag = False
 
     def create_and_open_new_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -287,20 +535,35 @@ class MainWindow(QWidget):
                 text = file.read()
                 self.create_new_tab(file_path, text)
 
+    def open_file(self):
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "новый файл", "", "Py(*.py)")
+        if file_path:
+            with open(file_path, "rt", encoding="UTF-8") as file:
+                text = file.read()
+                self.create_new_tab(file_path, text)
 
     def create_new_tab(self, file_path, text):
-        tab_layout = QVBoxLayout()
-        text_widget = QTextEdit()
-        text_widget.setText(text)
-        tab_layout.addWidget(text_widget)
+        tab_layout = QHBoxLayout()
+        tab_layout.setContentsMargins(0, 0, 0, 0)
+        tab_layout.setSpacing(0)
+        text_widget = QPlainTextEdit()
+        text_widget.setPlainText(text)
+        text_widget.setFont(QFont("Arial", 12))
         widget = QWidget()
+        number_bar = NumberBar(text_widget, widget)
+
+        tab_layout.addWidget(number_bar)
+        tab_layout.addWidget(text_widget)
         widget.setLayout(tab_layout)
         widget.file_path = file_path
+        widget.highlighter = MyHighlighter(text_widget.document())
         self.tabs.append(widget)
         self.files_tabs.addTab(self.tabs[-1], file_path.split("/")[-1])
 
     def close_current_tab(self):
         if self.tabs:
+            self.save_file()
             self.files_tabs.removeTab(self.files_tabs.currentIndex())
             self.tabs.pop(self.files_tabs.currentIndex())
 
@@ -309,7 +572,7 @@ class MainWindow(QWidget):
             with open(self.tabs[self.files_tabs.currentIndex()].file_path, mode="wt",
                     encoding="UTF-8") as file:
                 file.write(self.tabs[self.files_tabs.currentIndex()].layout().itemAt(
-                    0).widget().toPlainText())
+                    1).widget().toPlainText())
 
     def run_file(self):
         if self.tabs:
@@ -351,65 +614,26 @@ class MainWindow(QWidget):
                             srng.lstrip())) + "assert _end_flag, ('Остановленно пользователем')\n"
         return res
 
-    def terminate_thread(self):
-        global _end_flag
-        _end_flag = False
-
-    def add_start_function(self):
-        try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
-            text_edit.insertPlainText("start()\n")
-        except:
-            pass
-
-    def add_take_off_function(self):
-        try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
-            text_edit.insertPlainText("takeoff()\n")
-        except:
-            pass
-
-    def add_land_function(self):
-        try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
-            text_edit.insertPlainText("land()\n")
-        except:
-
-            pass
-
-            pass
-    def add_start_video_function(self):
-        try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
-            text_edit.insertPlainText("start_video()\n")
-        except:
-            pass
-
-    def add_flip_forward_function(self):
-        try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
-            text_edit.insertPlainText("flip_forward()\n")
-        except:
-            pass
-
-    def add_fly_up_function(self):
-        try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(0).widget()
-            text_edit.insertPlainText("up(20)\n")
-        except:
-            pass
-
     def add_function(self, text):
-        pass
+        try:
+            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(1).widget()
+            text_edit.insertPlainText(text + "\n")
+        except:
+            pass
 
     def closeEvent(self, QCloseEvent):
-        self.destroy()
+        for i in self.tabs:
+            with open(i.file_path, mode="wt", encoding="UTF-8") as file:
+                file.write(i.layout().itemAt(1).widget().toPlainText())
 
+def hook(*args):
+    sys.stdout = sys.__stdout__
+    print(*args)
+    os._exit(-1)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     sys.excepthook = hook
     window = MainWindow()
     window.show()
-    sys.exit(app.exec())
-    quit()
+    os._exit(app.exec())
