@@ -30,7 +30,7 @@ def format_code(color, style=''):
 
 
 STYLES = {
-    'keyword': format_code('blue'),
+    'keyword': format_code('darkBlue'),
     'operator': format_code('black'),
     'brace': format_code('darkGray'),
     'defclass': format_code('black', "bold"),
@@ -38,7 +38,7 @@ STYLES = {
     'string2': format_code('darkMagenta'),
     'comment': format_code('grey', "italic"),
     'self': format_code('purple'),
-    'numbers': format_code('darkblue'),
+    'numbers': format_code('darkBlue'),
 }
 
 
@@ -49,7 +49,7 @@ class MyHighlighter(QSyntaxHighlighter):
         'for', 'from', 'global', 'if', 'import', 'in',
         'is', 'lambda', 'not', 'or', 'pass', 'print',
         'raise', 'return', 'try', 'while', 'yield',
-        'None', 'True', 'False', "range",
+        'None', 'True', 'False', "range", "with", "open", "as"
     ]
 
     # Python operators
@@ -529,7 +529,7 @@ class MainWindow(QWidget):
         file_path, _ = QFileDialog.getSaveFileName(
             self, "новый файл", "", "Py(*.py)")
         if file_path:
-            with open(file_path, "w", encoding="UTF-8") as file:
+            with open(file_path, "w", encoding="UTF-8"):
                 pass
             with open(file_path, "rt", encoding="UTF-8") as file:
                 text = file.read()
