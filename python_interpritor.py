@@ -118,11 +118,12 @@ class NumberBar(QWidget):
     def __init__(self, parent, window):
         super().__init__(window)
         self.editor = parent
+        layout = QVBoxLayout()
         self.visible = True
         self.editor.blockCountChanged.connect(self.update_width)
         self.editor.updateRequest.connect(self.update_on_scroll)
         self.resize(9, parent.height())
-        self.update_width('1')
+        self.update_width(str(self.editor.blockCount()))
         self.window_ = window
 
     def update_on_scroll(self, rect, scroll):
@@ -165,7 +166,7 @@ class NumberBar(QWidget):
                     font.setBold(False)
 
                 painter.setFont(font)
-                painter.drawText(rect, Qt.AlignRight, '%i' % number)
+                painter.drawText(rect, Qt.AlignRight, '%i'%number)
 
                 if block_top > event.rect().bottom():
                     condition = False
@@ -340,10 +341,10 @@ class MainWindow(QWidget):
         video_tab = QTabWidget()
         self.video_out = QLabel(self)
         video_tab.addTab(self.video_out, 'Видео с дрона')
-        self.video_out.setMaximumHeight(480)
-        self.video_out.setMinimumHeight(480)
-        self.video_out.setMaximumWidth(640)
-        self.video_out.setMinimumWidth(640)
+        video_tab.setMaximumHeight(480)
+        video_tab.setMinimumHeight(480)
+        video_tab.setMaximumWidth(640)
+        video_tab.setMinimumWidth(640)
         self.video_out.setPixmap(QPixmap.fromImage(QImage("data/textures/video_background.png")))
 
         sub_layout = QHBoxLayout()
@@ -394,6 +395,10 @@ class MainWindow(QWidget):
         add_move_command_bar.setToolTipsVisible(True)
         add_move_3d_bar = menu_bar.addMenu("3d-движение")
         add_move_3d_bar.setToolTipsVisible(True)
+        add_set_command = menu_bar.addMenu("Команды установки значений")
+        add_set_command.setToolTipsVisible(True)
+        add_get_command = menu_bar.addMenu("Команды считывания значений")
+        add_get_command.setToolTipsVisible(True)
         help_menu = menu_bar.addMenu("Помощь")
         help_menu.setToolTipsVisible(True)
 
@@ -504,6 +509,52 @@ class MainWindow(QWidget):
         add_move_command_bar.addAction(flip_right_action)
         flip_right_action.setToolTip("переворот вправо относительно правых моторов")
         flip_right_action.triggered.connect(lambda: self.add_function("flip_right()"))
+
+        go_x_y_z_action = QAction("go(x, y, z, speed)", self)
+        add_move_3d_bar.addAction(go_x_y_z_action)
+        go_x_y_z_action.setToolTip("Движение к точке с координатами x, y, z "
+                                   "(значения x, y, z от -500 до 500, не могут быть одновременно между -20 и 20)")
+        go_x_y_z_action.triggered.connect(lambda: self.add_function("go(0, 0, 20, 10)"))
+
+        arc_action = QAction("arc(x1, y1, z1, x2, y2, z2, speed)", self)
+        add_move_3d_bar.addAction(arc_action)
+        arc_action.setToolTip("Движение по кривой, построенной через точку 1 к точке 2")
+        arc_action.triggered.connect(lambda: self.add_function("arc(0, 0, 0, 20, 20, 20, 10)"))
+
+        set_speed_action = QAction("speed(x)", self)
+        add_set_command.addAction(set_speed_action)
+        set_speed_action.setToolTip("Установка скорости х см/с (значение х от 10 до 100)")
+        set_speed_action.triggered.connect(lambda : self.add_function("speed(10)"))
+
+        set_pads_detect_on = QAction("pads_on()", self)
+        add_set_command.addAction(set_pads_detect_on)
+        set_pads_detect_on.setToolTip("Включение режима обнаружения полетных карточек")
+        set_pads_detect_on.triggered.connect(lambda : self.add_function("pads_on()"))
+
+        set_pads_detect_off = QAction("pads_off()", self)
+        add_set_command.addAction(set_pads_detect_off)
+        set_pads_detect_off.setToolTip("Выключение режима обнаружения полетных карточек")
+        set_pads_detect_off.triggered.connect(lambda: self.add_function("pads_off()"))
+
+        get_height = QAction("get_tof()", self)
+        add_get_command.addAction(get_height)
+        get_height.setToolTip("Получить текущую высоту")
+        get_height.triggered.connect(lambda: self.add_function("get_tof()"))
+
+        get_battery_charge = QAction("get_battery()", self)
+        add_get_command.addAction(get_battery_charge)
+        get_battery_charge.setToolTip("Получить остаток заряда батареи в процентах")
+        get_battery_charge.triggered.connect(lambda: self.add_function("get_battery()"))
+
+        get_mission_pad_number = QAction("get_mission_pad()", self)
+        add_get_command.addAction(get_mission_pad_number)
+        get_mission_pad_number.setToolTip("Получить номер обнаруженной полетной карточки")
+        get_mission_pad_number.triggered.connect(lambda: self.add_function("get_mission_pad()"))
+
+        get_video_frame_image = QAction("get_video_frame()", self)
+        add_get_command.addAction(get_video_frame_image)
+        get_video_frame_image.setToolTip("Получить последний кадр из видеопотока")
+        get_video_frame_image.triggered.connect(lambda: self.add_function("get_video_frame()"))
 
     def exec_ended(self):
         self.thrd.thread().quit()
