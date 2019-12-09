@@ -337,7 +337,9 @@ class MainWindow(QWidget):
         self.files_tabs.setTabsClosable(True)
         self.files_tabs.tabCloseRequested.connect(self.close_current_tab)
 
+        video_tab = QTabWidget()
         self.video_out = QLabel(self)
+        video_tab.addTab(self.video_out, 'Видео с дрона')
         self.video_out.setMaximumHeight(480)
         self.video_out.setMinimumHeight(480)
         self.video_out.setMaximumWidth(640)
@@ -346,7 +348,7 @@ class MainWindow(QWidget):
 
         sub_layout = QHBoxLayout()
         sub_layout.addWidget(self.files_tabs, 0)
-        sub_layout.addWidget(self.video_out, 1)
+        sub_layout.addWidget(video_tab, 1)
 
         sub_layout_widget = QWidget(self)
         sub_layout_widget.setLayout(sub_layout)
@@ -365,12 +367,16 @@ class MainWindow(QWidget):
         self.end_button.hide()
 
         sub_splitter = QSplitter(Qt.Horizontal)
+        input_tab = QTabWidget()
         self.input_text_edit = QPlainTextEdit()
+        input_tab.addTab(self.input_text_edit, 'Поле ввода')
+        output_tab = QTabWidget()
         self.output_text_edit = QPlainTextEdit()
+        output_tab.addTab(self.output_text_edit, 'Поле вывода')
         self.output_text_edit.setReadOnly(True)
 
-        sub_splitter.addWidget(self.input_text_edit)
-        sub_splitter.addWidget(self.output_text_edit)
+        sub_splitter.addWidget(input_tab)
+        sub_splitter.addWidget(output_tab)
 
         main_splitter = QSplitter(Qt.Vertical)
         main_splitter.addWidget(sub_layout_widget)
