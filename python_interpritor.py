@@ -53,23 +53,11 @@ class MyHighlighter(QSyntaxHighlighter):
     ]
 
     # Python operators
-    operators = [
-        '=',
-        # Comparison
-        '==', '!=', '<', '<=', '>', '>=',
-        # Arithmetic
-        '\+', '-', '\*', '/', '//', '\%', '\*\*',
-        # In-place
-        '\+=', '-=', '\*=', '/=', '\%=',
-        # Bitwise
-        '\^', '\|', '\&', '\~', '>>', '<<',
-    ]
+    operators = ['=', '==', '!=', '<', '<=', '>', '>=', '\+', '-', '\*', '/', '//', '\%', '\*\*', '\+=', '-=', '\*=',
+                 '/=', '\%=', '\^', '\|', '\&', '\~', '>>', '<<',]
 
     # Python braces
-    braces = [
-        '\{', '\}', '\(', '\)', '\[', '\]',
-    ]
-
+    braces = ['\{', '\}', '\(', '\)', '\[', '\]',]
 
     def highlightBlock(self, text):
         self.tri_single = (QRegExp("'''"), 1, STYLES['string2'])
