@@ -133,7 +133,7 @@ class NumberBar(QWidget):
         self.editor.blockCountChanged.connect(self.update_width)
         self.editor.updateRequest.connect(self.update_on_scroll)
         self.resize(9, parent.height())
-        self.update_width('1')
+        self.update_width(str(self.editor.blockCount()))
         self.window_ = window
 
     def update_on_scroll(self, rect, scroll):
@@ -347,16 +347,18 @@ class MainWindow(QWidget):
         self.files_tabs.setTabsClosable(True)
         self.files_tabs.tabCloseRequested.connect(self.close_current_tab)
 
+        video_tab = QTabWidget()
         self.video_out = QLabel(self)
-        self.video_out.setMaximumHeight(480)
-        self.video_out.setMinimumHeight(480)
-        self.video_out.setMaximumWidth(640)
-        self.video_out.setMinimumWidth(640)
+        video_tab.setMaximumHeight(480)
+        video_tab.setMinimumHeight(480)
+        video_tab.setMaximumWidth(640)
+        video_tab.setMinimumWidth(640)
+        video_tab.addTab(self.video_out, 'Видео с дрона')
         self.video_out.setPixmap(QPixmap.fromImage(QImage("data/textures/video_background.png")))
 
         sub_layout = QHBoxLayout()
         sub_layout.addWidget(self.files_tabs, 0)
-        sub_layout.addWidget(self.video_out, 1)
+        sub_layout.addWidget(video_tab, 1)
 
         sub_layout_widget = QWidget(self)
         sub_layout_widget.setLayout(sub_layout)
@@ -375,12 +377,16 @@ class MainWindow(QWidget):
         self.end_button.hide()
 
         sub_splitter = QSplitter(Qt.Horizontal)
+        input_tab = QTabWidget()
         self.input_text_edit = QPlainTextEdit()
+        input_tab.addTab(self.input_text_edit, 'Поле ввода')
+        output_tab = QTabWidget()
         self.output_text_edit = QPlainTextEdit()
+        output_tab.addTab(self.output_text_edit, 'Поле вывода')
         self.output_text_edit.setReadOnly(True)
 
-        sub_splitter.addWidget(self.input_text_edit)
-        sub_splitter.addWidget(self.output_text_edit)
+        sub_splitter.addWidget(input_tab)
+        sub_splitter.addWidget(output_tab)
 
         main_splitter = QSplitter(Qt.Vertical)
         main_splitter.addWidget(sub_layout_widget)
@@ -398,6 +404,10 @@ class MainWindow(QWidget):
         add_move_command_bar.setToolTipsVisible(True)
         add_move_3d_bar = menu_bar.addMenu("3d-движение")
         add_move_3d_bar.setToolTipsVisible(True)
+        add_set_command = menu_bar.addMenu("Команды установки значений")
+        add_set_command.setToolTipsVisible(True)
+        add_get_command = menu_bar.addMenu("Команды считывания значений")
+        add_get_command.setToolTipsVisible(True)
         help_menu = menu_bar.addMenu("Помощь")
         help_menu.setToolTipsVisible(True)
 
@@ -449,65 +459,122 @@ class MainWindow(QWidget):
         stop_action.setToolTip("Экстренная немедленная остановка моторов")
         stop_action.triggered.connect(lambda: self.add_function("stop()"))
 
+        movement_sub_menu = QMenu("перемещение", self)
+
         fly_up_action = QAction("up(x)", self)
-        add_move_command_bar.addAction(fly_up_action)
+        movement_sub_menu.addAction(fly_up_action)
         fly_up_action.setToolTip("Движение вверх на х см (значение х от 20 до 500)")
         fly_up_action.triggered.connect(lambda: self.add_function("up(20)"))
 
         fly_down_action = QAction("down(x)", self)
-        add_move_command_bar.addAction(fly_down_action)
+        movement_sub_menu.addAction(fly_down_action)
         fly_down_action.setToolTip("Движение вниз на х см (значение х от 20 до 500)")
         fly_down_action.triggered.connect(lambda: self.add_function("down(20)"))
 
         fly_left_action = QAction("left(x)", self)
-        add_move_command_bar.addAction(fly_left_action)
+        movement_sub_menu.addAction(fly_left_action)
         fly_left_action.setToolTip("Движение влево на х см (значение х от 20 до 500)")
         fly_left_action.triggered.connect(lambda: self.add_function("left(20)"))
 
         fly_right_action = QAction("right(x)", self)
-        add_move_command_bar.addAction(fly_right_action)
+        movement_sub_menu.addAction(fly_right_action)
         fly_right_action.setToolTip("Движение вправо на х см (значение х от 20 до 500)")
         fly_right_action.triggered.connect(lambda: self.add_function("right(20)"))
 
         fly_forward_action = QAction("forward(x)", self)
-        add_move_command_bar.addAction(fly_forward_action)
+        movement_sub_menu.addAction(fly_forward_action)
         fly_forward_action.setToolTip("Движение вперед на х см (значение х от 20 до 500)")
         fly_forward_action.triggered.connect(lambda: self.add_function("forward(20)"))
 
         fly_backward_action = QAction("backward(x)", self)
-        add_move_command_bar.addAction(fly_backward_action)
+        movement_sub_menu.addAction(fly_backward_action)
         fly_backward_action.setToolTip("Движение назад на х см (значение х от 20 до 500)")
         fly_backward_action.triggered.connect(lambda: self.add_function("backward(20)"))
 
+        add_move_command_bar.addMenu(movement_sub_menu)
+
+        sub_rotate_menu = QMenu("повороты", self)
         turn_clockwise_action = QAction("clockwise(x)", self)
-        add_move_command_bar.addAction(turn_clockwise_action)
+        sub_rotate_menu.addAction(turn_clockwise_action)
         turn_clockwise_action.setToolTip("Поворот на х градусов по часовой стрелке (значение х от 1 до 360)")
         turn_clockwise_action.triggered.connect(lambda: self.add_function("clockwise(20)"))
 
         turn_anticlockwise_action = QAction("anticlockwise(x)", self)
-        add_move_command_bar.addAction(turn_anticlockwise_action)
+        sub_rotate_menu.addAction(turn_anticlockwise_action)
         turn_anticlockwise_action.setToolTip("Поворот на х градусов против часовой стрелке (значение х от 1 до 360)")
         turn_anticlockwise_action.triggered.connect(lambda: self.add_function("anticlockwise(20)"))
 
+        add_move_command_bar.addMenu(sub_rotate_menu)
+
+        flips_sub_menu = QMenu("перевороты", self)
+
         flip_forward_action = QAction("flip_forward()", self)
-        add_move_command_bar.addAction(flip_forward_action)
+        flips_sub_menu.addAction(flip_forward_action)
         flip_forward_action.setToolTip("переворот вперед относительно передних моторов")
         flip_forward_action.triggered.connect(lambda: self.add_function("flip_forward()"))
 
         flip_backward_action = QAction("flip_backward()", self)
-        add_move_command_bar.addAction(flip_backward_action)
+        flips_sub_menu.addAction(flip_backward_action)
         flip_backward_action.setToolTip("переворот назад относительно задних моторов")
         flip_backward_action.triggered.connect(lambda: self.add_function("flip_backward()"))
 
         flip_left_action = QAction("flip_left()", self)
-        add_move_command_bar.addAction(flip_left_action)
+        flips_sub_menu.addAction(flip_left_action)
         flip_left_action.setToolTip("переворот влево относительно левых моторов")
         flip_left_action.triggered.connect(lambda: self.add_function("flip_left()"))
 
         flip_right_action = QAction("flip_right()", self)
-        add_move_command_bar.addAction(flip_right_action)
+        flips_sub_menu.addAction(flip_right_action)
         flip_right_action.setToolTip("переворот вправо относительно правых моторов")
         flip_right_action.triggered.connect(lambda: self.add_function("flip_right()"))
+
+        add_move_command_bar.addMenu(flips_sub_menu)
+
+        go_x_y_z_action = QAction("go(x, y, z, speed)", self)
+        add_move_3d_bar.addAction(go_x_y_z_action)
+        go_x_y_z_action.setToolTip("Движение к точке с координатами x, y, z "
+                                   "(значения x, y, z от -500 до 500, не могут быть одновременно между -20 и 20)")
+        go_x_y_z_action.triggered.connect(lambda: self.add_function("go(x, y, z, speed)"))
+
+        arc_action = QAction("arc(x1, y1, z1, x2, y2, z2, speed)", self)
+        add_move_3d_bar.addAction(arc_action)
+        arc_action.setToolTip("Движение по кривой, построенной через точку 1 к точке 2")
+        arc_action.triggered.connect(lambda: self.add_function("arc(x1, y1, z1, x2, y2, z2, speed)"))
+
+        set_speed_action = QAction("speed(x)", self)
+        add_set_command.addAction(set_speed_action)
+        set_speed_action.setToolTip("Установка скорости х см/с (значение х от 10 до 100)")
+        set_speed_action.triggered.connect(lambda: self.add_function("speed(10)"))
+
+        set_pads_detect_on = QAction("pads_on()", self)
+        add_set_command.addAction(set_pads_detect_on)
+        set_pads_detect_on.setToolTip("Включение режима обнаружения полетных карточек")
+        set_pads_detect_on.triggered.connect(lambda: self.add_function("pads_on()"))
+
+        set_pads_detect_off = QAction("pads_off()", self)
+        add_set_command.addAction(set_pads_detect_off)
+        set_pads_detect_off.setToolTip("Выключение режима обнаружения полетных карточек")
+        set_pads_detect_off.triggered.connect(lambda: self.add_function("pads_off()"))
+
+        get_height = QAction("get_tof()", self)
+        add_get_command.addAction(get_height)
+        get_height.setToolTip("Получить текущую высоту")
+        get_height.triggered.connect(lambda: self.add_function("get_tof()"))
+
+        get_battery_charge = QAction("get_battery()", self)
+        add_get_command.addAction(get_battery_charge)
+        get_battery_charge.setToolTip("Получить остаток заряда батареи в процентах")
+        get_battery_charge.triggered.connect(lambda: self.add_function("get_battery()"))
+
+        get_mission_pad_number = QAction("get_mission_pad()", self)
+        add_get_command.addAction(get_mission_pad_number)
+        get_mission_pad_number.setToolTip("Получить номер обнаруженной полетной карточки")
+        get_mission_pad_number.triggered.connect(lambda: self.add_function("get_mission_pad()"))
+
+        get_video_frame_image = QAction("get_video_frame()", self)
+        add_get_command.addAction(get_video_frame_image)
+        get_video_frame_image.setToolTip("Получить последний кадр из видеопотока")
+        get_video_frame_image.triggered.connect(lambda: self.add_function("get_video_frame()"))
 
     def exec_ended(self):
         self.thrd.thread().quit()
