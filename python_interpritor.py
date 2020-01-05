@@ -16,8 +16,7 @@ from win32api import GetSystemMetrics
 def format_code(color, style=''):
     """Return a QTextCharFormat with the given attributes.
     """
-    _color = QColor()
-    _color.setNamedColor(color)
+    _color = QColor(color)
 
     _format = QTextCharFormat()
     _format.setForeground(_color)
@@ -30,15 +29,15 @@ def format_code(color, style=''):
 
 
 STYLES = {
-    'keyword': format_code('blue'),
-    'operator': format_code('black'),
-    'brace': format_code('darkGray'),
-    'defclass': format_code('black', "bold"),
-    'string': format_code('green'),
-    'string2': format_code('darkMagenta'),
-    'comment': format_code('grey', "italic"),
-    'self': format_code('purple'),
-    'numbers': format_code('darkblue'),
+    'keyword': format_code('#0047e0'),
+    'operator': format_code('#000000'),
+    'brace': format_code('#3d3d3d'),
+    'defclass': format_code('#000000', "bold"),
+    'string': format_code('#02bd27'),
+    'string2': format_code('#b000aa'),
+    'comment': format_code('#757575', "italic"),
+    'self': format_code('#cc00cc'),
+    'numbers': format_code('#07006b'),
 }
 
 
@@ -248,7 +247,6 @@ class _VideoStream:
                 pygame.display.update()
 
     def _pyqt5_video_loop(self, stop_event):
-        print("I")
         cap = cv2.VideoCapture("udp://0.0.0.0:11111", cv2.CAP_FFMPEG)
         while not stop_event.is_set():
             ret, frame = cap.read()
