@@ -669,6 +669,21 @@ class MainWindow(QWidget):
         lesson_5_action = QAction("Урок 5", self)
         lesson_menu.addAction(lesson_5_action)
         lesson_5_action.triggered.connect(lambda: self.open_lesson(5, 13, 0))
+        lesson_6_action = QAction("Урок 6", self)
+        lesson_menu.addAction(lesson_6_action)
+        lesson_6_action.triggered.connect(lambda: self.open_lesson(6, 15, 0))
+        lesson_7_action = QAction("Урок 7", self)
+        lesson_menu.addAction(lesson_7_action)
+        lesson_7_action.triggered.connect(lambda: self.open_lesson(7, 15, 0))
+        lesson_8_action = QAction("Урок 8", self)
+        lesson_menu.addAction(lesson_8_action)
+        lesson_8_action.triggered.connect(lambda: self.open_lesson(8, 13, 0))
+        lesson_9_action = QAction("Урок 9", self)
+        lesson_menu.addAction(lesson_9_action)
+        lesson_9_action.triggered.connect(lambda: self.open_lesson(9, 14, 0))
+        lesson_10_action = QAction("Урок 10", self)
+        lesson_menu.addAction(lesson_10_action)
+        lesson_10_action.triggered.connect(lambda: self.open_lesson(10, 21, 0))
 
 
     def exec_ended(self):
