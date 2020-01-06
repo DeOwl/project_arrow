@@ -3,7 +3,7 @@ import zipfile
 from PIL import Image
 
 
-def crypt_files(image_path, directory_path, result_path):
+def encrypt_files(image_path, directory_path, result_path):
     """Шифрует файлы в картинку
 image_path - путь к картинке, которая возьмётся за основу трояна
 directory_path - путь к папке, в которой находятся файлы, которые будут зашифрованы в картинку
@@ -34,7 +34,7 @@ result_path - путь, в котором появится троян"""
         file.write(res_img)
 
 
-def encrypt_file(image_path, file_path):
+def decrypt_file(image_path, file_path):
     '''Расшифровывает троян
 image_path - путь к трояну
 file_path - необходимый файл в трояне'''
@@ -47,4 +47,4 @@ file_path - необходимый файл в трояне'''
 
 
 
-crypt_files('video_background.png', 'data', 'res.png')
+encrypt_files('video_background.png', 'data', 'res.png')

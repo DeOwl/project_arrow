@@ -2,7 +2,7 @@
 import os
 import io
 from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QPlainTextEdit, QAction, QWidget, \
-    QVBoxLayout, QFileDialog, QPushButton, QSplitter, QLabel, QMenu, QHBoxLayout
+    QVBoxLayout, QFileDialog, QPushButton, QSplitter, QLabel, QMenu, QHBoxLayout, QScrollArea, QSizePolicy
 from PyQt5.QtGui import QFont, QPixmap, QImage, QSyntaxHighlighter, QTextCharFormat, QColor, QPainter
 from PyQt5.QtCore import Qt, QThread, QObject, pyqtSlot, QEvent, QRegularExpression, QRegExp, QRect
 from tello_binom import *
@@ -11,6 +11,78 @@ import sys
 import threading
 import cv2
 from win32api import GetSystemMetrics
+import zipfile
+
+
+def decrypt_file(image_path, file_path):
+    '''Расшифровывает троян
+image_path - путь к трояну
+file_path - необходимый файл в трояне'''
+
+    img = Image.open(image_path)
+    x, y = img.size
+    with zipfile.ZipFile(image_path) as zf:
+        # Придумать пароль
+        return zf.open(file_path, pwd=f"{x}{image_path.split('/')[-1]}{y}".encode("utf-8"))
+
+
+class LessonView(QWidget):
+    def __init__(self, lesson_num, amount_of_pages, amount_of_listings):
+        super().__init__()
+        self.pages = []
+        self.current_page = 0
+        self.initUi(lesson_num, amount_of_pages, amount_of_listings)
+
+
+    def initUi(self, lesson_num, amount_of_pages, amount_of_listings):
+        self.setMaximumHeight(GetSystemMetrics(1))
+        self.setFixedWidth(1100)
+        self.resize(1100, 500)
+        self.get_images(lesson_num, amount_of_pages, amount_of_listings)
+        self.my_layout = QHBoxLayout()
+
+        self.left_button = QPushButton(self)
+        self.left_button.setText("⯇")
+        self.left_button.setFont(QFont("Arial", 15))
+        self.left_button.setMaximumWidth(25)
+        self.left_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.left_button.clicked.connect(self.previous_page)
+        self.my_layout.addWidget(self.left_button, 0)
+
+        self.image_out = QLabel(self)
+        self.image_out.move(0, 0)
+        self.image_out.setPixmap(self.pages[self.current_page])
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.move(0, 0)
+        self.scroll_area.setFixedWidth(1000)
+        self.scroll_area.setWidget(self.image_out)
+        self.my_layout.addWidget(self.scroll_area, 1)
+
+        self.right_button = QPushButton(self)
+        self.right_button.setText("⯈")
+        self.right_button.setFont(QFont("Arial", 15))
+        self.right_button.setMaximumWidth(25)
+        self.right_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.right_button.clicked.connect(self.next_page)
+        self.my_layout.addWidget(self.right_button, 2)
+
+        self.setLayout(self.my_layout)
+
+    def get_images(self, lesson_num, amount_of_pages, amount_of_listings):
+        for i in range(1, amount_of_pages + 1):
+            page = decrypt_file("data/textures/video_background.png", f"data/Lesson{lesson_num}_jpg/Lesson{lesson_num}_jpg/Lesson-{lesson_num}-{i}.jpg")
+            pixmap = QPixmap()
+            pixmap.loadFromData(page.read())
+            self.pages.append(pixmap)
+
+    def previous_page(self):
+        self.current_page = max(0, self.current_page - 1)
+        self.image_out.setPixmap(self.pages[self.current_page])
+
+    def next_page(self):
+        self.current_page = min(len(self.pages) - 1, self.current_page + 1)
+        self.image_out.setPixmap(self.pages[self.current_page])
+
 
 
 def format_code(color, style=''):
@@ -397,6 +469,8 @@ class MainWindow(QWidget):
         self.tabs = []
         self.setLayout(main_layout)
 
+        self.opened_lessons = []
+
     def setup_menu(self, menu_bar):
         file_menu = menu_bar.addMenu("Файл")
         file_menu.setToolTipsVisible(True)
@@ -408,6 +482,7 @@ class MainWindow(QWidget):
         add_set_command.setToolTipsVisible(True)
         add_get_command = menu_bar.addMenu("Команды считывания значений")
         add_get_command.setToolTipsVisible(True)
+        lesson_menu = menu_bar.addMenu("Обучение")
         help_menu = menu_bar.addMenu("Помощь")
         help_menu.setToolTipsVisible(True)
 
@@ -576,6 +651,26 @@ class MainWindow(QWidget):
         get_video_frame_image.setToolTip("Получить последний кадр из видеопотока")
         get_video_frame_image.triggered.connect(lambda: self.add_function("get_video_frame()"))
 
+        lesson_0_action = QAction("Урок 0", self)
+        lesson_menu.addAction(lesson_0_action)
+        lesson_0_action.triggered.connect(lambda: self.open_lesson(0, 25, 0))
+        lesson_1_action = QAction("Урок 1", self)
+        lesson_menu.addAction(lesson_1_action)
+        lesson_1_action.triggered.connect(lambda: self.open_lesson(1, 17, 0))
+        lesson_2_action = QAction("Урок 2", self)
+        lesson_menu.addAction(lesson_2_action)
+        lesson_2_action.triggered.connect(lambda: self.open_lesson(2, 15, 0))
+        lesson_3_action = QAction("Урок 3", self)
+        lesson_menu.addAction(lesson_3_action)
+        lesson_3_action.triggered.connect(lambda: self.open_lesson(3, 14, 0))
+        lesson_4_action = QAction("Урок 4", self)
+        lesson_menu.addAction(lesson_4_action)
+        lesson_4_action.triggered.connect(lambda: self.open_lesson(4, 15, 0))
+        lesson_5_action = QAction("Урок 5", self)
+        lesson_menu.addAction(lesson_5_action)
+        lesson_5_action.triggered.connect(lambda: self.open_lesson(5, 13, 0))
+
+
     def exec_ended(self):
         self.thrd.thread().quit()
         self.output_text_edit.setPlainText(sys.stdout.getvalue())
@@ -690,6 +785,10 @@ class MainWindow(QWidget):
         for i in self.tabs:
             with open(i.file_path, mode="wt", encoding="UTF-8") as file:
                 file.write(i.layout().itemAt(1).widget().toPlainText())
+
+    def open_lesson(self, lesson_number, number_of_pages, number_of_listings):
+        self.opened_lessons.append(LessonView(lesson_number, number_of_pages, number_of_listings))
+        self.opened_lessons[-1].show()
 
 def hook(*args):
     sys.stdout = sys.__stdout__
