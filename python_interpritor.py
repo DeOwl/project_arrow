@@ -37,7 +37,7 @@ class LessonView(QWidget):
     def initUi(self, lesson_num, amount_of_pages, amount_of_listings):
         self.setMaximumHeight(GetSystemMetrics(1))
         self.setFixedWidth(1100)
-        self.resize(1100, 500)
+        self.resize(1100, GetSystemMetrics(1) - 100)
         self.get_images(lesson_num, amount_of_pages, amount_of_listings)
         self.my_layout = QHBoxLayout()
 
@@ -651,39 +651,60 @@ class MainWindow(QWidget):
         get_video_frame_image.setToolTip("Получить последний кадр из видеопотока")
         get_video_frame_image.triggered.connect(lambda: self.add_function("get_video_frame()"))
 
+        lessons_sub_menu = QMenu("Уроки", self)
+
         lesson_0_action = QAction("Урок 0", self)
-        lesson_menu.addAction(lesson_0_action)
+        lessons_sub_menu.addAction(lesson_0_action)
         lesson_0_action.triggered.connect(lambda: self.open_lesson(0, 25, 0))
         lesson_1_action = QAction("Урок 1", self)
-        lesson_menu.addAction(lesson_1_action)
+        lessons_sub_menu.addAction(lesson_1_action)
         lesson_1_action.triggered.connect(lambda: self.open_lesson(1, 17, 0))
         lesson_2_action = QAction("Урок 2", self)
-        lesson_menu.addAction(lesson_2_action)
+        lessons_sub_menu.addAction(lesson_2_action)
         lesson_2_action.triggered.connect(lambda: self.open_lesson(2, 15, 0))
         lesson_3_action = QAction("Урок 3", self)
-        lesson_menu.addAction(lesson_3_action)
+        lessons_sub_menu.addAction(lesson_3_action)
         lesson_3_action.triggered.connect(lambda: self.open_lesson(3, 14, 0))
         lesson_4_action = QAction("Урок 4", self)
-        lesson_menu.addAction(lesson_4_action)
+        lessons_sub_menu.addAction(lesson_4_action)
         lesson_4_action.triggered.connect(lambda: self.open_lesson(4, 15, 0))
         lesson_5_action = QAction("Урок 5", self)
-        lesson_menu.addAction(lesson_5_action)
+        lessons_sub_menu.addAction(lesson_5_action)
         lesson_5_action.triggered.connect(lambda: self.open_lesson(5, 13, 0))
         lesson_6_action = QAction("Урок 6", self)
-        lesson_menu.addAction(lesson_6_action)
+        lessons_sub_menu.addAction(lesson_6_action)
         lesson_6_action.triggered.connect(lambda: self.open_lesson(6, 15, 0))
         lesson_7_action = QAction("Урок 7", self)
-        lesson_menu.addAction(lesson_7_action)
+        lessons_sub_menu.addAction(lesson_7_action)
         lesson_7_action.triggered.connect(lambda: self.open_lesson(7, 15, 0))
         lesson_8_action = QAction("Урок 8", self)
-        lesson_menu.addAction(lesson_8_action)
+        lessons_sub_menu.addAction(lesson_8_action)
         lesson_8_action.triggered.connect(lambda: self.open_lesson(8, 13, 0))
         lesson_9_action = QAction("Урок 9", self)
-        lesson_menu.addAction(lesson_9_action)
+        lessons_sub_menu.addAction(lesson_9_action)
         lesson_9_action.triggered.connect(lambda: self.open_lesson(9, 14, 0))
         lesson_10_action = QAction("Урок 10", self)
-        lesson_menu.addAction(lesson_10_action)
+        lessons_sub_menu.addAction(lesson_10_action)
         lesson_10_action.triggered.connect(lambda: self.open_lesson(10, 21, 0))
+        lesson_menu.addMenu(lessons_sub_menu)
+
+        listing_sub_menu = QMenu("Листинги", self)
+        lesson_menu.addMenu(listing_sub_menu)
+        listing_1_1 = QAction("Урок1-1", self)
+        listing_sub_menu.addAction(listing_1_1)
+        listing_1_1.triggered.connect(lambda: self.get_listing("Lesson_1_1.py"))
+        listing_2_1 = QAction("Урок2-1", self)
+        listing_sub_menu.addAction(listing_2_1)
+        listing_2_1.triggered.connect(lambda: self.get_listing("Lesson_2_1.py"))
+        listing_3_1 = QAction("Урок3-1", self)
+        listing_sub_menu.addAction(listing_3_1)
+        listing_3_1.triggered.connect(lambda: self.get_listing("Lesson_3_1.py"))
+        listing_4_1 = QAction("Урок4-1", self)
+        listing_sub_menu.addAction(listing_4_1)
+        listing_4_1.triggered.connect(lambda: self.get_listing("Lesson_4_1.py"))
+        listing_5_1 = QAction("Урок5-1", self)
+        listing_sub_menu.addAction(listing_5_1)
+        listing_5_1.triggered.connect(lambda: self.get_listing("Lesson_5_1.py"))
 
 
     def exec_ended(self):
@@ -722,8 +743,7 @@ class MainWindow(QWidget):
         tab_layout = QHBoxLayout()
         tab_layout.setContentsMargins(0, 0, 0, 0)
         tab_layout.setSpacing(0)
-        text_widget = QPlainTextEdit()
-        text_widget.setPlainText(text)
+        text_widget = QPlainTextEdit(text[1:])
         text_widget.setFont(QFont("Arial", 12))
         widget = QWidget()
         number_bar = NumberBar(text_widget, widget)
@@ -755,14 +775,14 @@ class MainWindow(QWidget):
             self.run_button.hide()
             self.end_button.show()
             path = self.tabs[self.files_tabs.currentIndex()].file_path
-            if os.path.exists(path):
+            if path.split("-")[0] != "Неназванный" and "/" in path:
                 self.save_file()
 
             stdin = io.StringIO(self.input_text_edit.toPlainText())
             self.stdout = io.StringIO()
             sys.stdin, sys.stdout = stdin, self.stdout
 
-            data = self.reformat_code(path)
+            data = self.reformat_code(self.tabs[self.files_tabs.currentIndex()].layout().itemAt(1).widget().toPlainText())
 
             self.thrd = CodeThread(data)
             thread = QThread(self.thrd)
@@ -771,22 +791,25 @@ class MainWindow(QWidget):
             self.thrd.moveToThread(thread)
             thread.start()
 
-    def reformat_code(self, path):
+    def reformat_code(self, text):
         res = ""
-        with open(path, encoding="utf-8") as file:
-            for i in file:
-                if i.strip():
-                    srng = i.rstrip() + "\n"
-                    if srng.lstrip().startswith('from') or srng.lstrip().startswith('import'):
-                        res += srng
-                    elif srng.endswith(":\n"):
-                        res += srng + " " * (len(
-                            srng) - len(
-                            srng.lstrip()) + 4) + "assert _end_flag, ('Остановленно пользователем')\n"
-                    else:
-                        res += srng + " " * (len(
-                            srng) - len(
-                            srng.lstrip())) + "assert _end_flag, ('Остановленно пользователем')\n"
+        for i in text.split("\n"):
+            if i.strip():
+                srng = i
+                if "#" in srng:
+                    srng = srng[:srng.rfind("#")]
+                srng = srng.rstrip()
+                srng += "\n"
+                if srng.lstrip().startswith('from') or srng.lstrip().startswith('import'):
+                    res += srng
+                elif srng.endswith(":\n"):
+                    res += srng + " " * (len(
+                        srng) - len(
+                        srng.lstrip()) + 4) + "assert _end_flag, ('Остановленно пользователем')\n"
+                else:
+                    res += srng + " " * (len(
+                        srng) - len(
+                        srng.lstrip())) + "assert _end_flag, ('Остановленно пользователем')\n"
         return res
 
     def add_function(self, text):
@@ -804,6 +827,11 @@ class MainWindow(QWidget):
     def open_lesson(self, lesson_number, number_of_pages, number_of_listings):
         self.opened_lessons.append(LessonView(lesson_number, number_of_pages, number_of_listings))
         self.opened_lessons[-1].show()
+
+    def get_listing(self, listing_name):
+        listing = decrypt_file("data/textures/video_background.png", f"data/Listings/{listing_name}").read().decode("utf-8")
+        self.create_new_tab(listing_name, listing)
+
 
 def hook(*args):
     sys.stdout = sys.__stdout__
