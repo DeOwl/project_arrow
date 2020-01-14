@@ -1,4 +1,3 @@
-from tello import *
 import time
 
 start()

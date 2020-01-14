@@ -3,7 +3,7 @@ import os
 import io
 from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QPlainTextEdit, QAction, QWidget, \
     QVBoxLayout, QFileDialog, QPushButton, QSplitter, QLabel, QMenu, QHBoxLayout, QScrollArea, QSizePolicy
-from PyQt5.QtGui import QFont, QPixmap, QImage, QSyntaxHighlighter, QTextCharFormat, QColor, QPainter
+from PyQt5.QtGui import QFont, QPixmap, QImage, QSyntaxHighlighter, QTextCharFormat, QColor, QPainter, QFontMetrics
 from PyQt5.QtCore import Qt, QThread, QObject, pyqtSlot, QEvent, QRegularExpression, QRegExp, QRect
 from tello_binom import *
 import traceback
@@ -705,6 +705,36 @@ class MainWindow(QWidget):
         listing_5_1 = QAction("Урок5-1", self)
         listing_sub_menu.addAction(listing_5_1)
         listing_5_1.triggered.connect(lambda: self.get_listing("Lesson_5_1.py"))
+        listing_6_1 = QAction("Урок6-1", self)
+        listing_sub_menu.addAction(listing_6_1)
+        listing_6_1.triggered.connect(lambda: self.get_listing("Lesson_6_1.py"))
+        listing_6_2 = QAction("Урок6-2", self)
+        listing_sub_menu.addAction(listing_6_2)
+        listing_6_2.triggered.connect(lambda: self.get_listing("Lesson_6_2.py"))
+        listing_6_3 = QAction("Урок6-3", self)
+        listing_sub_menu.addAction(listing_6_3)
+        listing_6_3.triggered.connect(lambda: self.get_listing("Lesson_6_3.py"))
+        listing_7_1 = QAction("Урок7-1", self)
+        listing_sub_menu.addAction(listing_7_1)
+        listing_7_1.triggered.connect(lambda: self.get_listing("Lesson_7_1.py"))
+        listing_7_2 = QAction("Урок7-2", self)
+        listing_sub_menu.addAction(listing_7_2)
+        listing_7_2.triggered.connect(lambda: self.get_listing("Lesson_7_2.py"))
+        listing_8_1 = QAction("Урок8-1", self)
+        listing_sub_menu.addAction(listing_8_1)
+        listing_8_1.triggered.connect(lambda: self.get_listing("Lesson_8_1.py"))
+        listing_9_1 = QAction("Урок9-1", self)
+        listing_sub_menu.addAction(listing_9_1)
+        listing_9_1.triggered.connect(lambda: self.get_listing("Lesson_9_1.py"))
+        listing_10_1 = QAction("Урок10-1", self)
+        listing_sub_menu.addAction(listing_10_1)
+        listing_10_1.triggered.connect(lambda: self.get_listing("Lesson_10_1.py"))
+        listing_10_2 = QAction("Урок10-2", self)
+        listing_sub_menu.addAction(listing_10_2)
+        listing_10_2.triggered.connect(lambda: self.get_listing("Lesson_10_2.py"))
+        listing_10_3 = QAction("Урок10-3", self)
+        listing_sub_menu.addAction(listing_10_3)
+        listing_10_3.triggered.connect(lambda: self.get_listing("Lesson_10_3.py"))
 
 
     def exec_ended(self):
@@ -728,8 +758,15 @@ class MainWindow(QWidget):
             with open(file_path, "w", encoding="UTF-8") as file:
                 pass
             with open(file_path, "rt", encoding="UTF-8") as file:
-                text = file.read()
-                self.create_new_tab(file_path, text)
+                self.create_new_tab(file_path, "")
+
+    def create_new_file(self, text):
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "новый файл", "", "Py(*.py)")
+        if file_path:
+            with open(file_path, "wt", encoding="UTF-8") as file:
+                file.write(text)
+        return file_path
 
     def open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -744,7 +781,14 @@ class MainWindow(QWidget):
         tab_layout.setContentsMargins(0, 0, 0, 0)
         tab_layout.setSpacing(0)
         text_widget = QPlainTextEdit(text[1:])
-        text_widget.setFont(QFont("Arial", 12))
+        font = QFont()
+        font.setFamily("Courier")
+        font.setStyleHint(QFont.Monospace)
+        font.setFixedPitch(True)
+        font.setPointSize(10)
+        text_widget.setFont(font)
+        metrics = QFontMetrics(font)
+        text_widget.setTabStopWidth(4 * metrics.width(' '))
         widget = QWidget()
         number_bar = NumberBar(text_widget, widget)
 
@@ -774,15 +818,20 @@ class MainWindow(QWidget):
             self.output_text_edit.clear()
             self.run_button.hide()
             self.end_button.show()
+
+            data = self.reformat_code(self.tabs[self.files_tabs.currentIndex()].layout().itemAt(1).widget().toPlainText())
+
             path = self.tabs[self.files_tabs.currentIndex()].file_path
             if path.split("-")[0] != "Неназванный" and "/" in path:
                 self.save_file()
+            elif path.split("-")[0] == "Неназванный":
+                self.create_new_file(data)
 
             stdin = io.StringIO(self.input_text_edit.toPlainText())
             self.stdout = io.StringIO()
             sys.stdin, sys.stdout = stdin, self.stdout
 
-            data = self.reformat_code(self.tabs[self.files_tabs.currentIndex()].layout().itemAt(1).widget().toPlainText())
+
 
             self.thrd = CodeThread(data)
             thread = QThread(self.thrd)
@@ -795,21 +844,10 @@ class MainWindow(QWidget):
         res = ""
         for i in text.split("\n"):
             if i.strip():
-                srng = i
-                if "#" in srng:
-                    srng = srng[:srng.rfind("#")]
-                srng = srng.rstrip()
-                srng += "\n"
-                if srng.lstrip().startswith('from') or srng.lstrip().startswith('import'):
-                    res += srng
-                elif srng.endswith(":\n"):
-                    res += srng + " " * (len(
-                        srng) - len(
-                        srng.lstrip()) + 4) + "assert _end_flag, ('Остановленно пользователем')\n"
-                else:
-                    res += srng + " " * (len(
-                        srng) - len(
-                        srng.lstrip())) + "assert _end_flag, ('Остановленно пользователем')\n"
+                while "\t" in i:
+                    i = i.replace("\t", "    ")
+                res += " " * (len(i) - len(i.lstrip())) + "assert _end_flag, ('Остановленно пользователем')\n"
+                res += i + "\n"
         return res
 
     def add_function(self, text):
@@ -821,8 +859,11 @@ class MainWindow(QWidget):
 
     def closeEvent(self, QCloseEvent):
         for i in self.tabs:
-            with open(i.file_path, mode="wt", encoding="UTF-8") as file:
-                file.write(i.layout().itemAt(1).widget().toPlainText())
+            path = i.file_path
+            if path.split("-")[0] != "Неназванный" and "/" in path:
+                self.save_file()
+            elif path.split("-")[0] == "Неназванный":
+                self.create_new_file(data)
 
     def open_lesson(self, lesson_number, number_of_pages, number_of_listings):
         self.opened_lessons.append(LessonView(lesson_number, number_of_pages, number_of_listings))
