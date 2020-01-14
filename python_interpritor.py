@@ -780,7 +780,10 @@ class MainWindow(QWidget):
         tab_layout = QHBoxLayout()
         tab_layout.setContentsMargins(0, 0, 0, 0)
         tab_layout.setSpacing(0)
-        text_widget = QPlainTextEdit(text[1:])
+        if not  text[0].isprintable():
+            text_widget = QPlainTextEdit(text[1:])
+        else:
+            text_widget = QPlainTextEdit(text)
         font = QFont()
         font.setFamily("Courier")
         font.setStyleHint(QFont.Monospace)
