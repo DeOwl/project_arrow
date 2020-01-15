@@ -780,7 +780,7 @@ class MainWindow(QWidget):
         tab_layout = QHBoxLayout()
         tab_layout.setContentsMargins(0, 0, 0, 0)
         tab_layout.setSpacing(0)
-        if not  text[0].isprintable():
+        if len(text) > 0 and not text[0].isprintable():
             text_widget = QPlainTextEdit(text[1:])
         else:
             text_widget = QPlainTextEdit(text)
@@ -805,7 +805,11 @@ class MainWindow(QWidget):
 
     def close_current_tab(self):
         if self.tabs:
-            self.save_file()
+            path = self.tabs[self.files_tabs.currentIndex()].file_path
+            if path.split("-")[0] != "Неназванный" and "/" in path:
+                self.save_file()
+            elif path.split("-")[0] == "Неназванный":
+                self.create_new_file(data)
             self.files_tabs.removeTab(self.files_tabs.currentIndex())
             self.tabs.pop(self.files_tabs.currentIndex())
 
@@ -846,7 +850,7 @@ class MainWindow(QWidget):
     def reformat_code(self, text):
         res = ""
         for i in text.split("\n"):
-            if i.strip():
+            if i.strip() and i[0] != "#":
                 while "\t" in i:
                     i = i.replace("\t", "    ")
                 res += " " * (len(i) - len(i.lstrip())) + "assert _end_flag, ('Остановленно пользователем')\n"
