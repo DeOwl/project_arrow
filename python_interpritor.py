@@ -510,7 +510,7 @@ class MainWindow(QWidget):
 
         start_video_action = QAction("start_video()", self)
         add_move_command_bar.addAction(start_video_action)
-        start_function_action.setToolTip("Включить видеопоток с фронтальной камеры")
+        start_video_action.setToolTip("Включить видеопоток с фронтальной камеры")
         start_video_action.triggered.connect(lambda: self.add_function("start_video()"))
 
         end_video_action = QAction("stop_video()", self)
@@ -524,6 +524,7 @@ class MainWindow(QWidget):
         stop_action.triggered.connect(lambda: self.add_function("stop()"))
 
         movement_sub_menu = QMenu("перемещение", self)
+        movement_sub_menu.setToolTipsVisible(True)
 
         fly_up_action = QAction("up(x)", self)
         movement_sub_menu.addAction(fly_up_action)
@@ -558,6 +559,7 @@ class MainWindow(QWidget):
         add_move_command_bar.addMenu(movement_sub_menu)
 
         sub_rotate_menu = QMenu("повороты", self)
+        sub_rotate_menu.setToolTipsVisible(True)
         turn_clockwise_action = QAction("clockwise(x)", self)
         sub_rotate_menu.addAction(turn_clockwise_action)
         turn_clockwise_action.setToolTip("Поворот на х градусов по часовой стрелке (значение х от 1 до 360)")
@@ -571,6 +573,7 @@ class MainWindow(QWidget):
         add_move_command_bar.addMenu(sub_rotate_menu)
 
         flips_sub_menu = QMenu("перевороты", self)
+        flips_sub_menu.setToolTipsVisible(True)
 
         flip_forward_action = QAction("flip_forward()", self)
         flips_sub_menu.addAction(flip_forward_action)
@@ -641,6 +644,7 @@ class MainWindow(QWidget):
         get_video_frame_image.triggered.connect(lambda: self.add_function("get_video_frame()"))
 
         lessons_sub_menu = QMenu("Уроки", self)
+        lessons_sub_menu.setToolTipsVisible(True)
 
         lesson_0_action = QAction("Урок 0", self)
         lessons_sub_menu.addAction(lesson_0_action)
