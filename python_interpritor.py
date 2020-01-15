@@ -523,6 +523,8 @@ class MainWindow(QWidget):
         stop_action.setToolTip("Экстренная немедленная остановка моторов")
         stop_action.triggered.connect(lambda: self.add_function("stop()"))
 
+        movement_sub_menu = QMenu("перемещение", self)
+
         fly_up_action = QAction("up(x)", self)
         movement_sub_menu.addAction(fly_up_action)
         fly_up_action.setToolTip("Движение вверх на х см (значение х от 20 до 500)")
