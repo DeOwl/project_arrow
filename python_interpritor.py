@@ -4,14 +4,14 @@ import io
 from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QPlainTextEdit, QAction, QWidget, \
     QVBoxLayout, QFileDialog, QPushButton, QSplitter, QLabel, QMenu, QHBoxLayout, QScrollArea, QSizePolicy
 from PyQt5.QtGui import QFont, QPixmap, QImage, QSyntaxHighlighter, QTextCharFormat, QColor, QPainter, QFontMetrics
-from PyQt5.QtCore import Qt, QThread, QObject, pyqtSlot, QEvent, QRegularExpression, QRegExp, QRect
-from tello_binom import *
+from PyQt5.QtCore import Qt, QThread, QObject, pyqtSlot, QEvent, QRegularExpression, QRegExp, QRect, QTimer
 import traceback
 import sys
 import threading
 import cv2
 from win32api import GetSystemMetrics
 import zipfile
+from subprocess import Popen, PIPE
 
 
 def decrypt_file(image_path, file_path):
@@ -32,7 +32,6 @@ class LessonView(QWidget):
         self.pages = []
         self.current_page = 0
         self.initUi(lesson_num, amount_of_pages, amount_of_listings)
-
 
     def initUi(self, lesson_num, amount_of_pages, amount_of_listings):
         self.setMaximumHeight(GetSystemMetrics(1))
@@ -82,7 +81,6 @@ class LessonView(QWidget):
     def next_page(self):
         self.current_page = min(len(self.pages) - 1, self.current_page + 1)
         self.image_out.setPixmap(self.pages[self.current_page])
-
 
 
 def format_code(color, style=''):
@@ -277,7 +275,6 @@ class _VideoStream:
         label = None
         while not stop_event.is_set():
             ret, frame = cap.read()
-            print(frame)
             if ret == True:
                 self.frame = frame
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -314,7 +311,7 @@ class _VideoStream:
             if ret == True:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 height, width, channel = frame.shape
-                cv2.resize(frame, window.video_out.size(), frame)
+                cv2.resize(frame, (640, 480), frame)
                 window.video_out.setPixmap(QPixmap.fromImage(QImage(frame, width, height, QImage.Format_RGB888)))
 
 
@@ -355,35 +352,23 @@ def stop_video():
         _video = None
 
 
-def get_video_frame():
-    """ Gets the last video frame from the video stream
-        Returns:
-            numpy.ndarray: The last frame the video stream reads
-    """
-    global _video
-    if _video is not None:
-        return _video.get_frame()
-
-
-_end_flag = True
-
-
 class CodeThread(QObject):
-    def __init__(self, code, *args, **kwargs):
+    def __init__(self, file_path, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.code = code
+        self.file_path = file_path
+        self.runnable_file = None
 
     @pyqtSlot()
     def run_code(self):
-        global _end_flag
         try:
-            _end_flag = True
-            exec(self.code, globals())
-        except AssertionError:
-            _end_flag = True
+            self.runnable_file = Popen([sys.executable, self.file_path], stdout=PIPE, stderr=PIPE, stdin=PIPE)
+            self.runnable_file.stdin.write(sys.stdin.read().encode())
+            self.runnable_file.stdin.flush()
+            print(self.runnable_file.stderr.read().decode("UTF-8"))
         except:
             traceback.print_exc(file=sys.stdout)
         finally:
+            self.runnable_file = None
             self.thread().finished.emit()
 
 class MainWindow(QWidget):
@@ -393,12 +378,15 @@ class MainWindow(QWidget):
         self.menu_font = QFont("Arial", 10)
         self.code_button_font = QFont("Arial", 16)
         self.setGeometry(0, 0, GetSystemMetrics(0) * 0.66, GetSystemMetrics(1) * 0.66)
+        self.thrd = None
         self.initUI()
 
     def initUI(self):
         menu_bar = QMenuBar()
         menu_bar.setFont(self.menu_font)
         self.setup_menu(menu_bar)
+
+        self.file_tab_sub_layout = QVBoxLayout()
 
         self.files_tabs = QTabWidget()
         main_layout = QVBoxLayout()
@@ -407,6 +395,7 @@ class MainWindow(QWidget):
         main_layout.setSpacing(1)
         self.files_tabs.setTabsClosable(True)
         self.files_tabs.tabCloseRequested.connect(self.close_current_tab)
+        self.file_tab_sub_layout.addWidget(self.files_tabs)
 
         video_tab = QTabWidget()
         self.video_out = QLabel(self)
@@ -418,7 +407,7 @@ class MainWindow(QWidget):
         self.video_out.setPixmap(QPixmap.fromImage(QImage("data/textures/video_background.png")))
 
         sub_layout = QHBoxLayout()
-        sub_layout.addWidget(self.files_tabs, 0)
+        sub_layout.addLayout(self.file_tab_sub_layout, 0)
         sub_layout.addWidget(video_tab, 1)
 
         sub_layout_widget = QWidget(self)
@@ -440,7 +429,9 @@ class MainWindow(QWidget):
         sub_splitter = QSplitter(Qt.Horizontal)
         input_tab = QTabWidget()
         self.input_text_edit = QPlainTextEdit()
+        self.input_text_edit.last_text = ""
         input_tab.addTab(self.input_text_edit, 'Поле ввода')
+        self.input_text_edit.textChanged.connect(self.push_text_to_running_file)
         output_tab = QTabWidget()
         self.output_text_edit = QPlainTextEdit()
         output_tab.addTab(self.output_text_edit, 'Поле вывода')
@@ -453,8 +444,8 @@ class MainWindow(QWidget):
         main_splitter.addWidget(sub_layout_widget)
         main_splitter.addWidget(sub_splitter)
         main_layout.addWidget(main_splitter)
-        main_layout.addWidget(self.run_button)
-        main_layout.addWidget(self.end_button)
+        self.file_tab_sub_layout.addWidget(self.run_button)
+        self.file_tab_sub_layout.addWidget(self.end_button)
         self.tabs = []
         self.setLayout(main_layout)
 
@@ -732,7 +723,7 @@ class MainWindow(QWidget):
 
     def exec_ended(self):
         self.thrd.thread().quit()
-        self.output_text_edit.setPlainText(sys.stdout.getvalue())
+
         stop_video()
         print("\nПрограмма завершила свою работу")
         self.video_out.setPixmap(QPixmap.fromImage(QImage("data/textures/video_background.png")))
@@ -740,9 +731,8 @@ class MainWindow(QWidget):
         self.end_button.hide()
 
     def terminate_thread(self):
-        global _end_flag
-        if _end_flag:
-            _end_flag = False
+        self.thrd.runnable_file.terminate()
+        self.thrd.thread().quit()
 
     def create_and_open_new_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -819,8 +809,6 @@ class MainWindow(QWidget):
             self.run_button.hide()
             self.end_button.show()
 
-            data = self.reformat_code(self.tabs[self.files_tabs.currentIndex()].layout().itemAt(1).widget().toPlainText())
-
             path = self.tabs[self.files_tabs.currentIndex()].file_path
             if path.split("-")[0] != "Неназванный" and "/" in path:
                 self.save_file()
@@ -833,22 +821,24 @@ class MainWindow(QWidget):
 
 
 
-            self.thrd = CodeThread(data)
+            self.thrd = CodeThread(path)
+            self.output_timer = QTimer()
+            self.output_timer.timeout.connect(self.print_output)
             thread = QThread(self.thrd)
             thread.started.connect(self.thrd.run_code)
             thread.finished.connect(self.exec_ended)
             self.thrd.moveToThread(thread)
             thread.start()
+            self.output_timer.start(10)
 
-    def reformat_code(self, text):
-        res = ""
-        for i in text.split("\n"):
-            if i.strip() and i[0] != "#":
-                while "\t" in i:
-                    i = i.replace("\t", "    ")
-                res += " " * (len(i) - len(i.lstrip())) + "assert _end_flag, ('Остановленно пользователем')\n"
-                res += i + "\n"
-        return res
+    def print_output(self):
+        if self.thrd and self.thrd.runnable_file:
+            sys.stdout.seek(2)
+            if sys.stdout.tell():
+                sys.stdout.seek(0)
+                current_output = list(filter(bool, self.output_text_edit.toPlainText().split('\n')))[-98:]
+                string = '\n'.join(current_output + [self.thrd.runnable_file.stdout.readline()[:-1].decode('UTF-8')])
+                self.output_text_edit.setPlainText(string)
 
     def add_function(self, text):
         try:
@@ -873,11 +863,20 @@ class MainWindow(QWidget):
         listing = decrypt_file("data/textures/video_background.png", f"data/Listings/{listing_name}").read().decode("utf-8")
         self.create_new_tab(listing_name, listing)
 
+    def push_text_to_running_file(self):
+        text = self.input_text_edit.toPlainText().replace(self.input_text_edit.last_text, "")
+        self.input_text_edit.last_text = self.input_text_edit.toPlainText()
+        if self.thrd:
+            if self.thrd.runnable_file:
+                self.thrd.runnable_file.stdin.write(text.encode("UTF-8"))
+                self.thrd.runnable_file.stdin.flush()
+
 
 def hook(*args):
     sys.stdout = sys.__stdout__
-    print(*args)
+    traceback.print_last()
     os._exit(-1)
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
