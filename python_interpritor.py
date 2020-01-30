@@ -722,6 +722,7 @@ class MainWindow(QWidget):
 
 
     def exec_ended(self):
+        self.output_timer.stop()
         self.thrd.thread().quit()
 
         stop_video()
@@ -829,16 +830,18 @@ class MainWindow(QWidget):
             thread.finished.connect(self.exec_ended)
             self.thrd.moveToThread(thread)
             thread.start()
-            self.output_timer.start(10)
+            self.output_timer.start(1)
 
     def print_output(self):
         if self.thrd and self.thrd.runnable_file:
-            sys.stdout.seek(2)
-            if sys.stdout.tell():
-                sys.stdout.seek(0)
+            self.thrd.runnable_file.stdout.seek(0, 2)
+            if self.thrd.runnable_file.stdout.tell():
+                self.thrd.runnable_file.stdout.seek(0, 0)
                 current_output = list(filter(bool, self.output_text_edit.toPlainText().split('\n')))[-98:]
                 string = '\n'.join(current_output + [self.thrd.runnable_file.stdout.readline()[:-1].decode('UTF-8')])
                 self.output_text_edit.setPlainText(string)
+                self.output_text_edit.verticalScrollBar().setValue(
+                    self.output_text_edit.verticalScrollBar().maximum() - 2)
 
     def add_function(self, text):
         try:
