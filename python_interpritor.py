@@ -360,16 +360,10 @@ class CodeThread(QObject):
 
     @pyqtSlot()
     def run_code(self):
-        try:
-            self.runnable_file = Popen([sys.executable, self.file_path], stdout=PIPE, stderr=PIPE, stdin=PIPE)
-            self.runnable_file.stdin.write(sys.stdin.read().encode())
-            self.runnable_file.stdin.flush()
-            print(self.runnable_file.stderr.read().decode("UTF-8"))
-        except:
-            traceback.print_exc(file=sys.stdout)
-        finally:
-            self.runnable_file = None
-            self.thread().finished.emit()
+        self.runnable_file = Popen([sys.executable, self.file_path], stdout=PIPE, stderr=PIPE, stdin=PIPE)
+        self.runnable_file.stdin.write(sys.stdin.read().encode())
+        self.runnable_file.stdin.flush()
+        print(self.runnable_file.stderr.getvalue())
 
 class MainWindow(QWidget):
     def __init__(self, parent=None):
@@ -722,8 +716,8 @@ class MainWindow(QWidget):
 
 
     def exec_ended(self):
+        self.terminate_thread()
         self.output_timer.stop()
-        self.thrd.thread().quit()
 
         stop_video()
         print("\nПрограмма завершила свою работу")
@@ -732,7 +726,8 @@ class MainWindow(QWidget):
         self.end_button.hide()
 
     def terminate_thread(self):
-        self.thrd.runnable_file.terminate()
+        if self.thrd.runnable_file:
+            self.thrd.runnable_file.terminate()
         self.thrd.thread().quit()
 
     def create_and_open_new_file(self):
@@ -830,18 +825,16 @@ class MainWindow(QWidget):
             thread.finished.connect(self.exec_ended)
             self.thrd.moveToThread(thread)
             thread.start()
-            self.output_timer.start(1)
+            self.output_timer.start(0.1)
 
     def print_output(self):
         if self.thrd and self.thrd.runnable_file:
-            self.thrd.runnable_file.stdout.seek(0, 2)
-            if self.thrd.runnable_file.stdout.tell():
-                self.thrd.runnable_file.stdout.seek(0, 0)
-                current_output = list(filter(bool, self.output_text_edit.toPlainText().split('\n')))[-98:]
-                string = '\n'.join(current_output + [self.thrd.runnable_file.stdout.readline()[:-1].decode('UTF-8')])
-                self.output_text_edit.setPlainText(string)
-                self.output_text_edit.verticalScrollBar().setValue(
-                    self.output_text_edit.verticalScrollBar().maximum() - 2)
+            current_output = list(filter(bool, self.output_text_edit.toPlainText().split('\n')))[-98:]
+            string = '\n'.join(current_output + [self.thrd.runnable_file.stdout.readline()[:-1].decode('UTF-8')])
+            self.output_text_edit.setPlainText(string + sys.stdout.getvalue())
+            self.output_text_edit.verticalScrollBar().setValue(self.output_text_edit.verticalScrollBar().maximum() - 2)
+            if self.thrd.runnable_file.poll() is not None:
+                self.exec_ended()
 
     def add_function(self, text):
         try:
