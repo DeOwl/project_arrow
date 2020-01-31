@@ -360,8 +360,27 @@ class CodeThread(QObject):
 
     @pyqtSlot()
     def run_code(self):
+        try:
+            self.runnable_file = Popen([sys.executable, self.file_path], stdout=PIPE, stderr=PIPE, stdin=PIPE)
+            self.runnable_file.stdin.write(sys.stdin.read().encode())
+            self.runnable_file.stdin.flush()
+            self.output_timer = QTimer()
+            self.output_timer.timeout.connect(self.print_output)
+            self.output_timer.start(10)
 
-        print(self.runnable_file.stderr.getvalue())
+        except:
+            traceback.print_exc(file=sys.stdout)
+
+    def print_output(self):
+        if self.runnable_file:
+            output = self.runnable_file.stdout.read().decode("UTF-8")
+            if output:
+                window.output_text_edit.setPlainText(output)
+
+            if self.runnable_file.poll() is not None:
+                self.output_timer.stop()
+                self.runnable_file = None
+                self.thread().finished.emit()
 
 class MainWindow(QWidget):
     def __init__(self, parent=None):
@@ -370,6 +389,7 @@ class MainWindow(QWidget):
         self.menu_font = QFont("Arial", 10)
         self.code_button_font = QFont("Arial", 16)
         self.setGeometry(0, 0, GetSystemMetrics(0) * 0.66, GetSystemMetrics(1) * 0.66)
+        self.thrd = None
         self.initUI()
 
     def initUI(self):
@@ -713,8 +733,8 @@ class MainWindow(QWidget):
 
 
     def exec_ended(self):
-        self.terminate_thread()
-        self.output_timer.stop()
+        self.thrd.thread().quit()
+        self.output_text_edit.setPlainText(sys.stdout.getvalue())
 
         stop_video()
         print("\nПрограмма завершила свою работу")
@@ -813,23 +833,13 @@ class MainWindow(QWidget):
 
 
 
-            self.output_timer = QTimer()
-            self.output_timer.timeout.connect(self.print_output)
-            self.runnable_file = Popen([sys.executable, path], stdout=PIPE, stderr=PIPE, stdin=PIPE)
-            self.runnable_file.stdin.write(sys.stdin.read().encode())
-            self.runnable_file.stdin.flush()
-            self.output_timer.start(1)
-            print(self.runnable_file.stdout.read().decode("UTF-8"))
+            self.thrd = CodeThread(path)
+            thread = QThread(self.thrd)
 
-    def print_output(self):
-        if self.runnable_file:
-            string = self.runnable_file.stdout.read().decode('UTF-8')
-            if string:
-                print(string)
-            self.output_text_edit.setPlainText(sys.stdout.getvalue())
-            self.output_text_edit.verticalScrollBar().setValue(self.output_text_edit.verticalScrollBar().maximum() - 2)
-            if self.runnable_file.poll() is not None:
-                self.exec_ended()
+            thread.started.connect(self.thrd.run_code)
+            thread.finished.connect(self.exec_ended)
+            self.thrd.moveToThread(thread)
+            thread.start()
 
     def add_function(self, text):
         try:
@@ -857,9 +867,10 @@ class MainWindow(QWidget):
     def push_text_to_running_file(self):
         text = self.input_text_edit.toPlainText().replace(self.input_text_edit.last_text, "")
         self.input_text_edit.last_text = self.input_text_edit.toPlainText()
-        if self.runnable_file:
-            self.runnable_file.stdin.write(text.encode("UTF-8"))
-            self.runnable_file.stdin.flush()
+        if self.thrd:
+            if self.thrd.runnable_file:
+                self.thrd.runnable_file.stdin.write(text.encode("UTF-8"))
+                self.thrd.runnable_file.stdin.flush()
 
 
 def hook(*args):
