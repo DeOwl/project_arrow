@@ -360,9 +360,7 @@ class CodeThread(QObject):
 
     @pyqtSlot()
     def run_code(self):
-        self.runnable_file = Popen([sys.executable, self.file_path], stdout=PIPE, stderr=PIPE, stdin=PIPE)
-        self.runnable_file.stdin.write(sys.stdin.read().encode())
-        self.runnable_file.stdin.flush()
+
         print(self.runnable_file.stderr.getvalue())
 
 class MainWindow(QWidget):
@@ -372,7 +370,6 @@ class MainWindow(QWidget):
         self.menu_font = QFont("Arial", 10)
         self.code_button_font = QFont("Arial", 16)
         self.setGeometry(0, 0, GetSystemMetrics(0) * 0.66, GetSystemMetrics(1) * 0.66)
-        self.thrd = None
         self.initUI()
 
     def initUI(self):
@@ -726,9 +723,8 @@ class MainWindow(QWidget):
         self.end_button.hide()
 
     def terminate_thread(self):
-        if self.thrd.runnable_file:
-            self.thrd.runnable_file.terminate()
-        self.thrd.thread().quit()
+        if self.runnable_file:
+            self.runnable_file.terminate()
 
     def create_and_open_new_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -817,23 +813,22 @@ class MainWindow(QWidget):
 
 
 
-            self.thrd = CodeThread(path)
             self.output_timer = QTimer()
             self.output_timer.timeout.connect(self.print_output)
-            thread = QThread(self.thrd)
-            thread.started.connect(self.thrd.run_code)
-            thread.finished.connect(self.exec_ended)
-            self.thrd.moveToThread(thread)
-            thread.start()
-            self.output_timer.start(0.1)
+            self.runnable_file = Popen([sys.executable, path], stdout=PIPE, stderr=PIPE, stdin=PIPE)
+            self.runnable_file.stdin.write(sys.stdin.read().encode())
+            self.runnable_file.stdin.flush()
+            self.output_timer.start(1)
+            print(self.runnable_file.stdout.read().decode("UTF-8"))
 
     def print_output(self):
-        if self.thrd and self.thrd.runnable_file:
-            current_output = list(filter(bool, self.output_text_edit.toPlainText().split('\n')))[-98:]
-            string = '\n'.join(current_output + [self.thrd.runnable_file.stdout.readline()[:-1].decode('UTF-8')])
-            self.output_text_edit.setPlainText(string + sys.stdout.getvalue())
+        if self.runnable_file:
+            string = self.runnable_file.stdout.read().decode('UTF-8')
+            if string:
+                print(string)
+            self.output_text_edit.setPlainText(sys.stdout.getvalue())
             self.output_text_edit.verticalScrollBar().setValue(self.output_text_edit.verticalScrollBar().maximum() - 2)
-            if self.thrd.runnable_file.poll() is not None:
+            if self.runnable_file.poll() is not None:
                 self.exec_ended()
 
     def add_function(self, text):
@@ -862,10 +857,9 @@ class MainWindow(QWidget):
     def push_text_to_running_file(self):
         text = self.input_text_edit.toPlainText().replace(self.input_text_edit.last_text, "")
         self.input_text_edit.last_text = self.input_text_edit.toPlainText()
-        if self.thrd:
-            if self.thrd.runnable_file:
-                self.thrd.runnable_file.stdin.write(text.encode("UTF-8"))
-                self.thrd.runnable_file.stdin.flush()
+        if self.runnable_file:
+            self.runnable_file.stdin.write(text.encode("UTF-8"))
+            self.runnable_file.stdin.flush()
 
 
 def hook(*args):
