@@ -357,30 +357,18 @@ class CodeThread(QObject):
         super().__init__(*args, **kwargs)
         self.file_path = file_path
         self.runnable_file = None
+        self.output = ""
+        self.quit = False
 
     @pyqtSlot()
     def run_code(self):
-        try:
-            self.runnable_file = Popen([sys.executable, self.file_path], stdout=PIPE, stderr=PIPE, stdin=PIPE)
-            self.runnable_file.stdin.write(sys.stdin.read().encode())
-            self.runnable_file.stdin.flush()
-            self.output_timer = QTimer()
-            self.output_timer.timeout.connect(self.print_output)
-            self.output_timer.start(10)
-
-        except:
-            traceback.print_exc(file=sys.stdout)
-
-    def print_output(self):
+        self.runnable_file = Popen([sys.executable, self.file_path], stdout=PIPE, stderr=PIPE, stdin=PIPE)
+        while self.runnable_file and self.runnable_file.poll() is None and not self.quit:
+            self.output += self.runnable_file.stdout.readline().decode("UTF-8")
         if self.runnable_file:
-            output = self.runnable_file.stdout.read().decode("UTF-8")
-            if output:
-                window.output_text_edit.setPlainText(output)
-
-            if self.runnable_file.poll() is not None:
-                self.output_timer.stop()
-                self.runnable_file = None
-                self.thread().finished.emit()
+            if not self.quit:
+                self.output += self.runnable_file.stdout.read().decode()
+            self.thread().finished.emit()
 
 class MainWindow(QWidget):
     def __init__(self, parent=None):
@@ -433,7 +421,7 @@ class MainWindow(QWidget):
         self.end_button = QPushButton(self)
         self.end_button.setStyleSheet("background-color:red")
         self.end_button.setText("Завершить")
-        self.end_button.pressed.connect(self.terminate_thread)
+        self.end_button.pressed.connect(self.terminate_thread_from_app)
         self.end_button.setFont(self.code_button_font)
         self.end_button.hide()
 
@@ -441,10 +429,12 @@ class MainWindow(QWidget):
         input_tab = QTabWidget()
         self.input_text_edit = QPlainTextEdit()
         self.input_text_edit.last_text = ""
+        self.input_text_edit.last_line = ""
         input_tab.addTab(self.input_text_edit, 'Поле ввода')
         self.input_text_edit.textChanged.connect(self.push_text_to_running_file)
         output_tab = QTabWidget()
         self.output_text_edit = QPlainTextEdit()
+
         output_tab.addTab(self.output_text_edit, 'Поле вывода')
         self.output_text_edit.setReadOnly(True)
 
@@ -733,18 +723,23 @@ class MainWindow(QWidget):
 
 
     def exec_ended(self):
-        self.thrd.thread().quit()
-        self.output_text_edit.setPlainText(sys.stdout.getvalue())
-
+        self.terminate_thread_from_thread()
         stop_video()
         print("\nПрограмма завершила свою работу")
         self.video_out.setPixmap(QPixmap.fromImage(QImage("data/textures/video_background.png")))
         self.run_button.show()
         self.end_button.hide()
 
-    def terminate_thread(self):
-        if self.runnable_file:
-            self.runnable_file.terminate()
+    def terminate_thread_from_thread(self):
+        if self.thrd and self.thrd.runnable_file:
+            self.thrd.runnable_file.terminate()
+            self.thrd.runnable_file = None
+        self.thrd.thread().quit()
+
+    def terminate_thread_from_app(self):
+        if self.thrd:
+            self.thrd.quit = True
+
 
     def create_and_open_new_file(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -818,6 +813,9 @@ class MainWindow(QWidget):
     def run_file(self):
         if self.tabs:
             self.output_text_edit.clear()
+            self.input_text_edit.last_text = ""
+            self.input_text_edit.last_line = ""
+            self.input_text_edit.clear()
             self.run_button.hide()
             self.end_button.show()
 
@@ -839,6 +837,9 @@ class MainWindow(QWidget):
             thread.started.connect(self.thrd.run_code)
             thread.finished.connect(self.exec_ended)
             self.thrd.moveToThread(thread)
+            self.output_timer = QTimer()
+            self.output_timer.timeout.connect(self.set_output)
+            self.output_timer.start(1)
             thread.start()
 
     def add_function(self, text):
@@ -865,12 +866,27 @@ class MainWindow(QWidget):
         self.create_new_tab(listing_name, listing)
 
     def push_text_to_running_file(self):
-        text = self.input_text_edit.toPlainText().replace(self.input_text_edit.last_text, "")
-        self.input_text_edit.last_text = self.input_text_edit.toPlainText()
-        if self.thrd:
-            if self.thrd.runnable_file:
-                self.thrd.runnable_file.stdin.write(text.encode("UTF-8"))
-                self.thrd.runnable_file.stdin.flush()
+        if self.thrd and self.thrd.runnable_file:
+            text = self.input_text_edit.toPlainText()
+            if len(text) < len(self.input_text_edit.last_text):
+                if self.input_text_edit.last_line:
+                    self.input_text_edit.last_line = self.input_text_edit.last_line[:-1]
+                self.input_text_edit.last_text = text
+            elif len(text) > len(self.input_text_edit.last_text):
+                new_text = self.input_text_edit.last_line + text[len(self.input_text_edit.last_text):]
+                if "\n" in new_text:
+                    text1 = "\n".join(new_text.split("\n")[:-1]) + "\n"
+                    self.thrd.runnable_file.stdin.write(text1.encode("UTF-8"))
+                    self.thrd.runnable_file.stdin.flush()
+                self.input_text_edit.last_line = text.split("\n")[-1]
+                self.input_text_edit.last_text = text
+
+    def set_output(self):
+        if self.thrd and self.thrd.runnable_file:
+            if len(self.thrd.output.split("\n")) > len(self.output_text_edit.toPlainText().split("\n")):
+                self.output_text_edit.setPlainText("\n".join(self.thrd.output.split("\n")[-10000:]))
+                self.output_text_edit.verticalScrollBar().setValue(
+                    self.output_text_edit.verticalScrollBar().value() + (len(self.thrd.output.split("\n")) - len(self.output_text_edit.toPlainText().split("\n"))) * 16)
 
 
 def hook(*args):
