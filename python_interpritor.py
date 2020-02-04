@@ -366,6 +366,8 @@ class CodeThread(QObject):
         self.runnable_file = Popen([sys.executable, self.file_path], stdout=PIPE, stderr=PIPE, stdin=PIPE)
         while self.runnable_file and self.runnable_file.poll() is None and not self.quit:
             self.output += self.runnable_file.stdout.readline().decode("UTF-8")
+            self.output += self.runnable_file.stderr.read().decode('UTF-8')
+
         if self.runnable_file:
             if not self.quit:
                 self.output += self.runnable_file.stdout.read().decode()
@@ -751,7 +753,10 @@ class MainWindow(QWidget):
         if file_path:
             self.tabs[self.tab_widget.currentIndex()].file_path = file_path
             self.tab_widget.setTabText(self.tab_widget.currentIndex(), file_path.split("/")[-1])
-            self.save_file()
+            with open(self.tabs[self.tab_widget.currentIndex()].file_path, mode="wt",
+                      encoding="UTF-8") as file:
+                file.write(self.tabs[self.tab_widget.currentIndex()].layout().itemAt(
+                    1).widget().toPlainText())
 
     def open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
