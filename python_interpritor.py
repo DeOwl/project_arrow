@@ -12,6 +12,7 @@ import cv2
 from win32api import GetSystemMetrics
 import zipfile
 from subprocess import Popen, PIPE
+from PIL import Image
 
 
 def decrypt_file(image_path, file_path):
@@ -373,7 +374,7 @@ class CodeThread(QObject):
 class MainWindow(QWidget):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
-        self.setWindowTitle("Среда разработки для квадракоптеров Tello Edu")
+        self.setWindowTitle("Среда разработки для квадрокоптеров Tello Edu")
         self.menu_font = QFont("Arial", 10)
         self.code_button_font = QFont("Arial", 16)
         self.setGeometry(0, 0, GetSystemMetrics(0) * 0.66, GetSystemMetrics(1) * 0.66)
@@ -387,14 +388,14 @@ class MainWindow(QWidget):
 
         self.file_tab_sub_layout = QVBoxLayout()
 
-        self.files_tabs = QTabWidget()
+        self.tab_widget = QTabWidget()
         main_layout = QVBoxLayout()
         main_layout.addWidget(menu_bar, 0)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(1)
-        self.files_tabs.setTabsClosable(True)
-        self.files_tabs.tabCloseRequested.connect(self.close_current_tab)
-        self.file_tab_sub_layout.addWidget(self.files_tabs)
+        self.tab_widget.setTabsClosable(True)
+        self.tab_widget.tabCloseRequested.connect(self.close_selected_tab)
+        self.file_tab_sub_layout.addWidget(self.tab_widget)
 
         video_tab = QTabWidget()
         self.video_out = QLabel(self)
@@ -437,6 +438,7 @@ class MainWindow(QWidget):
 
         output_tab.addTab(self.output_text_edit, 'Поле вывода')
         self.output_text_edit.setReadOnly(True)
+        self.output_text_edit.verticalScrollBar().setTracking(True)
 
         sub_splitter.addWidget(input_tab)
         sub_splitter.addWidget(output_tab)
@@ -468,9 +470,9 @@ class MainWindow(QWidget):
         help_menu.setToolTipsVisible(True)
 
         # file_actions
-        new_file_action = QAction("Создать", self)
+        new_file_action = QAction("Новый Файл", self)
         file_menu.addAction(new_file_action)
-        new_file_action.triggered.connect(self.create_and_open_new_file)
+        new_file_action.triggered.connect(lambda x: self.create_new_tab("Неназванный", ""))
 
         open_file_action = QAction("Открыть", self)
         file_menu.addAction(open_file_action)
@@ -738,33 +740,27 @@ class MainWindow(QWidget):
 
     def terminate_thread_from_app(self):
         if self.thrd:
+            self.thrd.runnable_file.stdin.write("\n".encode("UTF-8"))
+            self.thrd.runnable_file.stdin.flush()
             self.thrd.quit = True
 
 
-    def create_and_open_new_file(self):
+    def save_file_as(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "новый файл", "", "Py(*.py)")
+            self, "Сохранить Файл", "", "Py(*.py)")
         if file_path:
-            with open(file_path, "w", encoding="UTF-8"):
-                pass
-            with open(file_path, "rt", encoding="UTF-8") as file:
-                self.create_new_tab(file_path, "")
-
-    def create_new_file(self, text):
-        file_path, _ = QFileDialog.getSaveFileName(
-            self, "новый файл", "", "Py(*.py)")
-        if file_path:
-            with open(file_path, "wt", encoding="UTF-8") as file:
-                file.write(text)
-        return file_path
+            self.tabs[self.tab_widget.currentIndex()].file_path = file_path
+            self.tab_widget.setTabText(self.tab_widget.currentIndex(), file_path.split("/")[-1])
+            self.save_file()
 
     def open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "новый файл", "", "Py(*.py)")
+            self, "Открыть файл", "", "Py(*.py)")
         if file_path:
             with open(file_path, "rt", encoding="UTF-8") as file:
                 text = file.read()
                 self.create_new_tab(file_path, text)
+
 
     def create_new_tab(self, file_path, text):
         tab_layout = QHBoxLayout()
@@ -791,24 +787,27 @@ class MainWindow(QWidget):
         widget.file_path = file_path
         widget.highlighter = MyHighlighter(text_widget.document())
         self.tabs.append(widget)
-        self.files_tabs.addTab(self.tabs[-1], file_path.split("/")[-1])
+        self.tab_widget.addTab(self.tabs[-1], file_path.split("/")[-1])
 
-    def close_current_tab(self):
+    def close_selected_tab(self, index):
         if self.tabs:
-            path = self.tabs[self.files_tabs.currentIndex()].file_path
-            if path.split("-")[0] != "Неназванный" and "/" in path:
+            path = self.tabs[index].file_path
+            if os.path.exists(path) and os.path.isfile(path):
                 self.save_file()
-            elif path.split("-")[0] == "Неназванный":
-                self.create_new_file(data)
-            self.files_tabs.removeTab(self.files_tabs.currentIndex())
-            self.tabs.pop(self.files_tabs.currentIndex())
+            else:
+                self.save_file_as()
+            self.tab_widget.removeTab(self.tab_widget.currentIndex())
+            self.tabs.pop(index)
 
     def save_file(self):
         if self.tabs:
-            with open(self.tabs[self.files_tabs.currentIndex()].file_path, mode="wt",
-                    encoding="UTF-8") as file:
-                file.write(self.tabs[self.files_tabs.currentIndex()].layout().itemAt(
-                    1).widget().toPlainText())
+            if os.path.exists(self.tabs[self.tab_widget.currentIndex()].file_path):
+                with open(self.tabs[self.tab_widget.currentIndex()].file_path, mode="wt",
+                        encoding="UTF-8") as file:
+                    file.write(self.tabs[self.tab_widget.currentIndex()].layout().itemAt(
+                        1).widget().toPlainText())
+            else:
+                self.save_file_as()
 
     def run_file(self):
         if self.tabs:
@@ -819,11 +818,11 @@ class MainWindow(QWidget):
             self.run_button.hide()
             self.end_button.show()
 
-            path = self.tabs[self.files_tabs.currentIndex()].file_path
-            if path.split("-")[0] != "Неназванный" and "/" in path:
+            path = self.tabs[self.tab_widget.currentIndex()].file_path
+            if os.path.exists(path) and os.path.isfile(path):
                 self.save_file()
-            elif path.split("-")[0] == "Неназванный":
-                self.create_new_file(data)
+            else:
+                self.save_file_as()
 
             stdin = io.StringIO(self.input_text_edit.toPlainText())
             self.stdout = io.StringIO()
@@ -844,7 +843,7 @@ class MainWindow(QWidget):
 
     def add_function(self, text):
         try:
-            text_edit = self.tabs[self.files_tabs.currentIndex()].layout().itemAt(1).widget()
+            text_edit = self.tabs[self.tab_widget.currentIndex()].layout().itemAt(1).widget()
             text_edit.insertPlainText(text + "\n")
         except:
             pass
@@ -852,10 +851,10 @@ class MainWindow(QWidget):
     def closeEvent(self, QCloseEvent):
         for i in self.tabs:
             path = i.file_path
-            if path.split("-")[0] != "Неназванный" and "/" in path:
+            if os.path.exists(path) and os.path.isfile(path):
                 self.save_file()
-            elif path.split("-")[0] == "Неназванный":
-                self.create_new_file(data)
+            else:
+                self.save_file_as()
 
     def open_lesson(self, lesson_number, number_of_pages, number_of_listings):
         self.opened_lessons.append(LessonView(lesson_number, number_of_pages, number_of_listings))
