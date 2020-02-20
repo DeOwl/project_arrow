@@ -2,7 +2,7 @@
 import os
 import io
 from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QPlainTextEdit, QAction, QWidget, \
-    QVBoxLayout, QFileDialog, QPushButton, QSplitter, QLabel, QMenu, QHBoxLayout, QScrollArea, QSizePolicy
+    QVBoxLayout, QFileDialog, QPushButton, QSplitter, QLabel, QMenu, QHBoxLayout, QScrollArea, QSizePolicy, QComboBox
 from PyQt5.QtGui import QFont, QPixmap, QImage, QSyntaxHighlighter, QTextCharFormat, QColor, QPainter, QFontMetrics
 from PyQt5.QtCore import Qt, QThread, QObject, pyqtSlot, QEvent, QRegularExpression, QRegExp, QRect, QTimer
 import traceback
@@ -13,7 +13,7 @@ from win32api import GetSystemMetrics
 import zipfile
 from subprocess import Popen, PIPE
 from PIL import Image
-
+import tello_sensor
 
 def decrypt_file(image_path, file_path):
     '''Расшифровывает троян
@@ -112,6 +112,9 @@ STYLES = {
 }
 
 
+
+
+
 class MyHighlighter(QSyntaxHighlighter):
     keywords = [
         'and', 'assert', 'break', 'class', 'continue', 'def',
@@ -119,7 +122,7 @@ class MyHighlighter(QSyntaxHighlighter):
         'for', 'from', 'global', 'if', 'import', 'in',
         'is', 'lambda', 'not', 'or', 'pass', 'print',
         'raise', 'return', 'try', 'while', 'yield',
-        'None', 'True', 'False', "range", "with", "open", "as"
+        'None', 'True', 'False', "range", "with", "open", "as", "input"
     ]
 
     # Python operators
@@ -245,114 +248,6 @@ class NumberBar(QWidget):
             painter.end()
 
 
-class _VideoStream:
-    started = False
-    thread = None
-    kill_event = None
-    frame = None
-    windows = {}
-    screen = None
-
-    def start(self):
-        if not self.started:
-            sock.sendto('streamon'.encode(encoding="utf-8"), tello_address)
-            time.sleep(1)
-            self.kill_event = threading.Event()
-            if platform.system() == "Darwin":
-                self.thread = threading.Thread(target=self._pyqt5_video_loop, args=[self.kill_event])
-                pygame.init()
-                self.screen = pygame.display.set_mode([640, 480])
-                pygame.display.set_caption("Video Stream")
-            else:
-                self.thread = threading.Thread(target=self._pyqt5_video_loop, args=[self.kill_event])
-            self.thread.start()
-            self.started = True
-
-    def _tkinter_video_loop(self, stop_event):
-        root = tk.Tk()
-        root.title("Video Stream")
-        root.protocol("WM_DELETE_WINDOW", lambda: stop_event.set())
-        cap = cv2.VideoCapture("udp://@0.0.0.0:11111")
-        label = None
-        while not stop_event.is_set():
-            ret, frame = cap.read()
-            if ret == True:
-                self.frame = frame
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                img = Image.fromarray(frame)
-                img = ImageTk.PhotoImage(img)
-                if label is None:
-                    label = tk.Label(image=img)
-                    label.image = img
-                    label.pack()
-                else:
-                    label.configure(image=img)
-                    label.image = img
-            root.update()
-        root.destroy()
-
-    def _pygame_video_loop(self, stop_event):
-        cap = cv2.VideoCapture("udp://0.0.0.0:11111", cv2.CAP_FFMPEG)
-        while not stop_event.is_set():
-            ret, frame = cap.read()
-            if ret == True:
-                self.frame = frame
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                frame = np.rot90(frame)
-                frame = np.flip(frame, 0)
-                frame = pygame.surfarray.make_surface(frame)
-                self.screen.blit(frame, (0, 0))
-
-                pygame.display.update()
-
-    def _pyqt5_video_loop(self, stop_event):
-        cap = cv2.VideoCapture("udp://0.0.0.0:11111", cv2.CAP_FFMPEG)
-        while not stop_event.is_set():
-            ret, frame = cap.read()
-            if ret == True:
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                height, width, channel = frame.shape
-                cv2.resize(frame, (640, 480), frame)
-                window.video_out.setPixmap(QPixmap.fromImage(QImage(frame, width, height, QImage.Format_RGB888)))
-
-
-    def stop(self):
-        if self.started:
-            self.kill_event.set()
-            if platform.system() == "Darwin":
-                pygame.quit()
-            self.started = False
-            sock.sendto('streamoff'.encode(encoding="utf-8"), tello_address)
-            time.sleep(1)
-
-    def get_frame(self):
-        return copy.deepcopy(self.frame)
-
-    def __del__(self):
-        if self.started:
-            self.stop()
-
-
-# Global video instance
-_video = None
-
-def start_video():
-    """ Starts the video stream """
-    global _video
-    if _video is None:
-        _video = _VideoStream()
-    _video.start()
-
-
-def stop_video():
-    """ Stops the video stream """
-    global _video
-    if _video is not None:
-        _video.stop()
-        del _video
-        _video = None
-
-
 class CodeThread(QObject):
     def __init__(self, file_path, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -365,12 +260,13 @@ class CodeThread(QObject):
     def run_code(self):
         self.runnable_file = Popen([sys.executable, self.file_path], stdout=PIPE, stderr=PIPE, stdin=PIPE)
         while self.runnable_file and self.runnable_file.poll() is None and not self.quit:
-            self.output += self.runnable_file.stdout.readline().decode("UTF-8")
-            self.output += self.runnable_file.stderr.read().decode('UTF-8')
-
+            try:
+                self.output += self.runnable_file.stdout.readline().decode("UTF-8")
+            except:
+                break
         if self.runnable_file:
             if not self.quit:
-                self.output += self.runnable_file.stdout.read().decode()
+                self.output += self.runnable_file.stdout.read().decode() + self.runnable_file.stderr.read().decode()
             self.thread().finished.emit()
 
 class MainWindow(QWidget):
@@ -399,18 +295,25 @@ class MainWindow(QWidget):
         self.tab_widget.tabCloseRequested.connect(self.close_selected_tab)
         self.file_tab_sub_layout.addWidget(self.tab_widget)
 
-        video_tab = QTabWidget()
-        self.video_out = QLabel(self)
-        video_tab.setMaximumHeight(480)
-        video_tab.setMinimumHeight(480)
-        video_tab.setMaximumWidth(640)
-        video_tab.setMinimumWidth(640)
-        video_tab.addTab(self.video_out, 'Видео с дрона')
-        self.video_out.setPixmap(QPixmap.fromImage(QImage("data/textures/video_background.png")))
+        sensor_layout = QVBoxLayout()
+        self.sensor_connection = QComboBox()
+
+
+
+        self.sensor_connection.addItem("-")
+        self.sensor_connection.addItem("Еко сенсор")
+        self.sensor_connection.currentIndexChanged.connect(self.connect_sensor)
+        self.sensor_connection.setMaximumWidth(300)
+        self.sensor_connection.setMaximumHeight(20)
+
+        self.sensor_info = QPlainTextEdit()
+        self.sensor_info.setMaximumWidth(300)
+        sensor_layout.addWidget(self.sensor_connection, 0)
+        sensor_layout.addWidget(self.sensor_info, 1)
 
         sub_layout = QHBoxLayout()
         sub_layout.addLayout(self.file_tab_sub_layout, 0)
-        sub_layout.addWidget(video_tab, 1)
+        sub_layout.addLayout(sensor_layout, 1)
 
         sub_layout_widget = QWidget(self)
         sub_layout_widget.setLayout(sub_layout)
@@ -424,7 +327,7 @@ class MainWindow(QWidget):
         self.end_button = QPushButton(self)
         self.end_button.setStyleSheet("background-color:red")
         self.end_button.setText("Завершить")
-        self.end_button.pressed.connect(self.terminate_thread_from_app)
+        self.end_button.pressed.connect(self.terminate_thread)
         self.end_button.setFont(self.code_button_font)
         self.end_button.hide()
 
@@ -726,25 +629,33 @@ class MainWindow(QWidget):
         listing_10_3.triggered.connect(lambda: self.get_listing("Lesson_10_3.py"))
 
 
+    def connect_sensor(self, name):
+        print(name)
+        if name == 1:
+            connection = tello_sensor.connect_eco_sensor()
+            if connection:
+                self.sensor_timer = QTimer()
+                self.sensor_timer.timeout.connect(self.set_sensor_data)
+                self.sensor_timer.start(1)
+            else:
+                self.sensor_connection.setCurrentIndex(0)
+
+
+    def set_sensor_data(self):
+        self.sensor_info.setPlainText("\n".join(tello_sensor.get_data()))
+
+
     def exec_ended(self):
-        self.terminate_thread_from_thread()
-        stop_video()
+        self.terminate_thread()
         print("\nПрограмма завершила свою работу")
-        self.video_out.setPixmap(QPixmap.fromImage(QImage("data/textures/video_background.png")))
         self.run_button.show()
         self.end_button.hide()
 
-    def terminate_thread_from_thread(self):
+    def terminate_thread(self):
         if self.thrd and self.thrd.runnable_file:
             self.thrd.runnable_file.terminate()
             self.thrd.runnable_file = None
-        self.thrd.thread().quit()
-
-    def terminate_thread_from_app(self):
-        if self.thrd:
-            self.thrd.runnable_file.stdin.write("\n".encode("UTF-8"))
-            self.thrd.runnable_file.stdin.flush()
-            self.thrd.quit = True
+            self.thrd.thread().quit()
 
 
     def save_file_as(self):
@@ -820,15 +731,17 @@ class MainWindow(QWidget):
             self.input_text_edit.last_text = ""
             self.input_text_edit.last_line = ""
             self.input_text_edit.clear()
-            self.run_button.hide()
-            self.end_button.show()
+
 
             path = self.tabs[self.tab_widget.currentIndex()].file_path
             if os.path.exists(path) and os.path.isfile(path):
                 self.save_file()
             else:
                 self.save_file_as()
+                return
 
+            self.run_button.hide()
+            self.end_button.show()
             stdin = io.StringIO(self.input_text_edit.toPlainText())
             self.stdout = io.StringIO()
             sys.stdin, sys.stdout = stdin, self.stdout
@@ -854,6 +767,7 @@ class MainWindow(QWidget):
             pass
 
     def closeEvent(self, QCloseEvent):
+        self.exec_ended()
         for i in self.tabs:
             path = i.file_path
             if os.path.exists(path) and os.path.isfile(path):
