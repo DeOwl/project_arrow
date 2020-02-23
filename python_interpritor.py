@@ -1,10 +1,12 @@
 # encoding:utf-8
 import os
+import time
+import random
 import io
 from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QPlainTextEdit, QAction, QWidget, \
     QVBoxLayout, QFileDialog, QPushButton, QSplitter, QLabel, QMenu, QHBoxLayout, QScrollArea, QSizePolicy, QComboBox, QDesktopWidget
 from PyQt5.QtGui import QFont, QPixmap, QImage, QSyntaxHighlighter, QTextCharFormat, QColor, QPainter, QFontMetrics
-from PyQt5.QtCore import Qt, QThread, QObject, pyqtSlot, QEvent, QRegularExpression, QRegExp, QRect, QTimer
+from PyQt5.QtCore import Qt, QThread, QObject, pyqtSignal, pyqtSlot, QEvent, QRegularExpression, QRegExp, QRect, QTimer
 import traceback
 import sys
 import threading
@@ -13,6 +15,9 @@ import zipfile
 from subprocess import Popen, PIPE
 from PIL import Image
 import tello_sensor
+
+FILEDIALOGS_OPTIONS = QFileDialog.Options() | QFileDialog.DontUseNativeDialog
+
 
 def decrypt_file(image_path, file_path):
     '''Расшифровывает троян
@@ -247,6 +252,36 @@ class NumberBar(QWidget):
             painter.end()
 
 
+class SensorThread(QThread):
+    output = pyqtSignal(str)
+    def __init__(self, parent=None):
+        QThread.__init__(self, parent)
+        self.stop_flag = False
+        self.name = None
+
+    def __del__(self):
+        self.stop_flag = True
+        self.wait()
+
+
+    def render(self, name):
+        self.name = name
+        self.start()
+
+    def run(self):
+        if self.name:
+            if self.name == 1:
+                connection = tello_sensor.connect_eco_sensor()
+            else:
+                connection = None
+            if connection:
+                while not self.stop_flag:
+                    time.sleep(1)
+                    self.output.emit("\n".join(tello_sensor.get_data()))
+            else:
+                window.sensor_connection.setCurrentIndex(0)
+
+
 class CodeThread(QObject):
     def __init__(self, file_path, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -294,10 +329,9 @@ class MainWindow(QWidget):
         self.tab_widget.tabCloseRequested.connect(self.close_selected_tab)
         self.file_tab_sub_layout.addWidget(self.tab_widget)
 
+
         sensor_layout = QVBoxLayout()
         self.sensor_connection = QComboBox()
-
-
 
         self.sensor_connection.addItem("-")
         self.sensor_connection.addItem("Еко сенсор")
@@ -307,8 +341,10 @@ class MainWindow(QWidget):
 
         self.sensor_info = QPlainTextEdit()
         self.sensor_info.setMaximumWidth(300)
+        self.sensor_thrd = None
         sensor_layout.addWidget(self.sensor_connection, 0)
         sensor_layout.addWidget(self.sensor_info, 1)
+
 
         sub_layout = QHBoxLayout()
         sub_layout.addLayout(self.file_tab_sub_layout, 0)
@@ -393,6 +429,7 @@ class MainWindow(QWidget):
 
         start_function_action = QAction("start()", self)
         add_move_command_bar.addAction(start_function_action)
+        add_move_command_bar.setToolTipsVisible(True)
         start_function_action.setToolTip("Вход в режим исполнения команд")
         start_function_action.triggered.connect(lambda: self.add_function("start()"))
 
@@ -629,19 +666,20 @@ class MainWindow(QWidget):
 
 
     def connect_sensor(self, name):
-        print(name)
         if name == 1:
-            connection = tello_sensor.connect_eco_sensor()
-            if connection:
-                self.sensor_timer = QTimer()
-                self.sensor_timer.timeout.connect(self.set_sensor_data)
-                self.sensor_timer.start(1)
-            else:
-                self.sensor_connection.setCurrentIndex(0)
+            if self.sensor_thrd:
+                del self.sensor_thrd
+            self.sensor_thrd = SensorThread()
+            self.sensor_thrd.finished.connect(self.finished_sensor_thrd)
+            self.sensor_thrd.output.connect(self.set_sensor_data)
+            self.sensor_thrd.render(1)
+
+    def finished_sensor_thrd(self):
+        self.sensor_thrd = None
 
 
-    def set_sensor_data(self):
-        self.sensor_info.setPlainText("\n".join(tello_sensor.get_data()))
+    def set_sensor_data(self, string):
+        self.sensor_info.setPlainText(string)
 
 
     def exec_ended(self):
@@ -659,7 +697,7 @@ class MainWindow(QWidget):
 
     def save_file_as(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Сохранить Файл", "", "Py(*.py)")
+            self, "Сохранить Файл", "", "Py(*.py)", options=FILEDIALOGS_OPTIONS)
         if file_path:
             self.tabs[self.tab_widget.currentIndex()].file_path = file_path
             self.tab_widget.setTabText(self.tab_widget.currentIndex(), file_path.split("/")[-1])
@@ -670,7 +708,7 @@ class MainWindow(QWidget):
 
     def open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
-            self, "Открыть файл", "", "Py(*.py)")
+            self, "Открыть файл", "", "Py(*.py)", options=FILEDIALOGS_OPTIONS)
         if file_path:
             with open(file_path, "rt", encoding="UTF-8") as file:
                 text = file.read()
