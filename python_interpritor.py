@@ -2,14 +2,13 @@
 import os
 import io
 from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QPlainTextEdit, QAction, QWidget, \
-    QVBoxLayout, QFileDialog, QPushButton, QSplitter, QLabel, QMenu, QHBoxLayout, QScrollArea, QSizePolicy, QComboBox
+    QVBoxLayout, QFileDialog, QPushButton, QSplitter, QLabel, QMenu, QHBoxLayout, QScrollArea, QSizePolicy, QComboBox, QDesktopWidget
 from PyQt5.QtGui import QFont, QPixmap, QImage, QSyntaxHighlighter, QTextCharFormat, QColor, QPainter, QFontMetrics
 from PyQt5.QtCore import Qt, QThread, QObject, pyqtSlot, QEvent, QRegularExpression, QRegExp, QRect, QTimer
 import traceback
 import sys
 import threading
 import cv2
-from win32api import GetSystemMetrics
 import zipfile
 from subprocess import Popen, PIPE
 from PIL import Image
@@ -35,9 +34,9 @@ class LessonView(QWidget):
         self.initUi(lesson_num, amount_of_pages, amount_of_listings)
 
     def initUi(self, lesson_num, amount_of_pages, amount_of_listings):
-        self.setMaximumHeight(GetSystemMetrics(1))
+        self.setMaximumHeight(QDesktopWidget().screenGeometry(0).height())
         self.setFixedWidth(1100)
-        self.resize(1100, GetSystemMetrics(1) - 100)
+        self.resize(1100, QDesktopWidget().screenGeometry(0).height() - 100)
         self.get_images(lesson_num, amount_of_pages, amount_of_listings)
         self.my_layout = QHBoxLayout()
 
@@ -275,7 +274,7 @@ class MainWindow(QWidget):
         self.setWindowTitle("Среда разработки для квадрокоптеров Tello Edu")
         self.menu_font = QFont("Arial", 10)
         self.code_button_font = QFont("Arial", 16)
-        self.setGeometry(0, 0, GetSystemMetrics(0) * 0.66, GetSystemMetrics(1) * 0.66)
+        self.setGeometry(0, 0, QDesktopWidget().screenGeometry(0).width() * 0.66, QDesktopWidget().screenGeometry(0).height() * 0.66)
         self.thrd = None
         self.initUI()
 
