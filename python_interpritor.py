@@ -16,7 +16,7 @@ from subprocess import Popen, PIPE
 from PIL import Image
 import tello_sensor
 
-FILEDIALOGS_OPTIONS = QFileDialog.Options() | QFileDialog.DontUseNativeDialog
+FILEDIALOGS_OPTIONS = QFileDialog.Options()
 
 
 def decrypt_file(image_path, file_path):
@@ -276,8 +276,16 @@ class SensorThread(QThread):
                 connection = None
             if connection:
                 while not self.stop_flag:
-                    time.sleep(1)
-                    self.output.emit("\n".join(tello_sensor.get_data()))
+                    time.sleep(0.5)
+                    data = tello_sensor.get_data()
+                    if data:
+                        self.output.emit("\n".join(data))
+                    elif data is None:
+                        self.output.emit("")
+                    else:
+                        window.sensor_connection.setCurrentIndex(0)
+                        self.stop_flag = True
+
             else:
                 window.sensor_connection.setCurrentIndex(0)
 
