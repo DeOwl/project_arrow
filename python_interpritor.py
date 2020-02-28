@@ -342,22 +342,39 @@ class MainWindow(QWidget):
         self.sensor_connection = QComboBox()
 
         self.sensor_connection.addItem("-")
-        self.sensor_connection.addItem("Еко сенсор")
+        self.sensor_connection.addItem("Модуль экология")
         self.sensor_connection.currentIndexChanged.connect(self.connect_sensor)
-        self.sensor_connection.setMaximumWidth(300)
+        self.sensor_connection.setMaximumWidth(600)
         self.sensor_connection.setMaximumHeight(20)
-
         self.sensor_info = QPlainTextEdit()
-        self.sensor_info.setMaximumWidth(300)
+        self.sensor_info.setMaximumWidth(600)
         self.sensor_thrd = None
+
+        sensor_tab_widget = QTabWidget()
+
+        sensor_widget = QWidget()
+        sensor_sub_layout = QHBoxLayout()
+        self.start_sensor_record = QPushButton(self)
+        self.start_sensor_record.setText("Начать запись")
+        self.start_sensor_record.setStyleSheet("background-color:green")
+        self.start_sensor_record.setFont(self.code_button_font)
+        sensor_sub_layout.addWidget(self.start_sensor_record)
+        self.stop_sensor_record = QPushButton(self)
+        self.stop_sensor_record.setText("Завершить запись")
+        self.stop_sensor_record.setStyleSheet("background-color:red")
+        self.stop_sensor_record.setFont(self.code_button_font)
+        sensor_sub_layout.addWidget(self.stop_sensor_record)
+
         sensor_layout.addWidget(self.sensor_connection, 0)
         sensor_layout.addWidget(self.sensor_info, 1)
-
+        sensor_layout.addLayout(sensor_sub_layout)
+        sensor_widget.setLayout(sensor_layout)
+        sensor_tab_widget.addTab(sensor_widget, "Сенсор")
+        sensor_tab_widget.addTab(QWidget(), "График")
 
         sub_layout = QHBoxLayout()
         sub_layout.addLayout(self.file_tab_sub_layout, 0)
-        sub_layout.addLayout(sensor_layout, 1)
-
+        sub_layout.addWidget(sensor_tab_widget)
         sub_layout_widget = QWidget(self)
         sub_layout_widget.setLayout(sub_layout)
 
@@ -420,7 +437,7 @@ class MainWindow(QWidget):
         # file_actions
         new_file_action = QAction("Новый Файл", self)
         file_menu.addAction(new_file_action)
-        new_file_action.triggered.connect(lambda x: self.create_new_tab("Неназванный", ""))
+        new_file_action.triggered.connect(lambda x: self.create_new_tab("Неназванный", "from tello_binom import *\n"))
 
         open_file_action = QAction("Открыть", self)
         file_menu.addAction(open_file_action)
@@ -429,6 +446,10 @@ class MainWindow(QWidget):
         save_file_action = QAction("Сохранить", self)
         file_menu.addAction(save_file_action)
         save_file_action.triggered.connect(self.save_file)
+
+        save_file_as_action = QAction("Сохранить как", self)
+        file_menu.addAction(save_file_as_action)
+        save_file_as_action.triggered.connect(self.save_file_as)
 
         video_help = QAction("Видеоуроки", self)
         help_menu.addAction(video_help)
@@ -691,6 +712,7 @@ class MainWindow(QWidget):
 
 
     def exec_ended(self):
+        self.set_output()
         self.terminate_thread()
         print("\nПрограмма завершила свою работу")
         self.run_button.show()
@@ -704,15 +726,16 @@ class MainWindow(QWidget):
 
 
     def save_file_as(self):
-        file_path, _ = QFileDialog.getSaveFileName(
-            self, "Сохранить Файл", "", "Py(*.py)", options=FILEDIALOGS_OPTIONS)
-        if file_path:
-            self.tabs[self.tab_widget.currentIndex()].file_path = file_path
-            self.tab_widget.setTabText(self.tab_widget.currentIndex(), file_path.split("/")[-1])
-            with open(self.tabs[self.tab_widget.currentIndex()].file_path, mode="wt",
-                      encoding="UTF-8") as file:
-                file.write(self.tabs[self.tab_widget.currentIndex()].layout().itemAt(
-                    1).widget().toPlainText())
+        if self.tabs:
+            file_path, _ = QFileDialog.getSaveFileName(
+                self, "Сохранить Файл", "", "Py(*.py)", options=FILEDIALOGS_OPTIONS)
+            if file_path:
+                self.tabs[self.tab_widget.currentIndex()].file_path = file_path
+                self.tab_widget.setTabText(self.tab_widget.currentIndex(), file_path.split("/")[-1])
+                with open(self.tabs[self.tab_widget.currentIndex()].file_path, mode="wt",
+                          encoding="UTF-8") as file:
+                    file.write(self.tabs[self.tab_widget.currentIndex()].layout().itemAt(
+                        1).widget().toPlainText())
 
     def open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -769,6 +792,7 @@ class MainWindow(QWidget):
                         1).widget().toPlainText())
             else:
                 self.save_file_as()
+
 
     def run_file(self):
         if self.tabs:
