@@ -279,9 +279,9 @@ class SensorThread(QThread):
                     time.sleep(0.5)
                     data = tello_sensor.get_data()
                     if data:
-                        self.output.emit("\n".join(data))
+                        self.output.emit(data)
                     elif data is None:
-                        self.output.emit("")
+                        self.output.emit({})
                     else:
                         window.sensor_connection.setCurrentIndex(0)
                         self.stop_flag = True
@@ -348,6 +348,7 @@ class MainWindow(QWidget):
         self.sensor_connection.setMaximumHeight(20)
         self.sensor_info = QPlainTextEdit()
         self.sensor_info.setMaximumWidth(600)
+        self.sensor_info.setReadOnly(True)
         self.sensor_thrd = None
 
         sensor_tab_widget = QTabWidget()
@@ -358,12 +359,15 @@ class MainWindow(QWidget):
         self.start_sensor_record.setText("Начать запись")
         self.start_sensor_record.setStyleSheet("background-color:green")
         self.start_sensor_record.setFont(self.code_button_font)
+        self.start_sensor_record.pressed.connect(self.start_recording_data)
         sensor_sub_layout.addWidget(self.start_sensor_record)
         self.stop_sensor_record = QPushButton(self)
         self.stop_sensor_record.setText("Завершить запись")
         self.stop_sensor_record.setStyleSheet("background-color:red")
         self.stop_sensor_record.setFont(self.code_button_font)
         sensor_sub_layout.addWidget(self.stop_sensor_record)
+        self.recording = False
+        self.recorded_data = []
 
         sensor_layout.addWidget(self.sensor_connection, 0)
         sensor_layout.addWidget(self.sensor_info, 1)
@@ -698,17 +702,31 @@ class MainWindow(QWidget):
         if name == 1:
             if self.sensor_thrd:
                 del self.sensor_thrd
+            self.sensor_info.setPlainText("connecting...")
             self.sensor_thrd = SensorThread()
             self.sensor_thrd.finished.connect(self.finished_sensor_thrd)
             self.sensor_thrd.output.connect(self.set_sensor_data)
             self.sensor_thrd.render(1)
 
     def finished_sensor_thrd(self):
+        self.sensor_info.setPlainText("")
         self.sensor_thrd = None
 
 
-    def set_sensor_data(self, string):
-        self.sensor_info.setPlainText(string)
+    def set_sensor_data(self, data):
+        self.sensor_info.setPlainText("\n".join(" ".join(i) for i in data.items()))
+        if self.recording:
+            self.recorded_data.append(data)
+
+
+    def start_recording_data(self):
+        if self.sensor_thrd:
+            if not self.recording:
+                self.recording = True
+                self.recorded_data = []
+        else:
+            self.sensor_info.setPlainText("no module connected")
+
 
 
     def exec_ended(self):
