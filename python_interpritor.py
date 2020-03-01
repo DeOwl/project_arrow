@@ -1,19 +1,22 @@
 # encoding:utf-8
-import os
-import time
-import random
+import csv
+import datetime
 import io
-from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QPlainTextEdit, QAction, QWidget, \
-    QVBoxLayout, QFileDialog, QPushButton, QSplitter, QLabel, QMenu, QHBoxLayout, QScrollArea, QSizePolicy, QComboBox, QDesktopWidget
-from PyQt5.QtGui import QFont, QPixmap, QImage, QSyntaxHighlighter, QTextCharFormat, QColor, QPainter, QFontMetrics
-from PyQt5.QtCore import Qt, QThread, QObject, pyqtSignal, pyqtSlot, QEvent, QRegularExpression, QRegExp, QRect, QTimer
-import traceback
+import os
 import sys
-import threading
-import cv2
+import time
+import traceback
 import zipfile
 from subprocess import Popen, PIPE
+
 from PIL import Image
+from PyQt5.QtCore import Qt, QThread, QObject, pyqtSignal, pyqtSlot, QRegExp, QRect, QTimer
+from PyQt5.QtGui import QFont, QPixmap, QSyntaxHighlighter, QTextCharFormat, QColor, \
+    QPainter, QFontMetrics
+from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QPlainTextEdit, QAction, QWidget, \
+    QVBoxLayout, QFileDialog, QPushButton, QSplitter, QLabel, QMenu, QHBoxLayout, QScrollArea, \
+    QSizePolicy, QComboBox, QDesktopWidget
+
 import tello_sensor
 
 FILEDIALOGS_OPTIONS = QFileDialog.Options()
@@ -74,7 +77,8 @@ class LessonView(QWidget):
 
     def get_images(self, lesson_num, amount_of_pages, amount_of_listings):
         for i in range(1, amount_of_pages + 1):
-            page = decrypt_file("data/textures/video_background.png", f"data/Lesson{lesson_num}_jpg/Lesson{lesson_num}_jpg/Lesson-{lesson_num}-{i}.jpg")
+            page = decrypt_file("data/textures/video_background.png",
+                                f"data/Lesson{lesson_num}_jpg/Lesson{lesson_num}_jpg/Lesson-{lesson_num}-{i}.jpg")
             pixmap = QPixmap()
             pixmap.loadFromData(page.read())
             self.pages.append(pixmap)
@@ -116,9 +120,6 @@ STYLES = {
 }
 
 
-
-
-
 class MyHighlighter(QSyntaxHighlighter):
     keywords = [
         'and', 'assert', 'break', 'class', 'continue', 'def',
@@ -130,11 +131,12 @@ class MyHighlighter(QSyntaxHighlighter):
     ]
 
     # Python operators
-    operators = ['=', '==', '!=', '<', '<=', '>', '>=', '\+', '-', '\*', '/', '//', '\%', '\*\*', '\+=', '-=', '\*=',
-                 '/=', '\%=', '\^', '\|', '\&', '\~', '>>', '<<',]
+    operators = ['=', '==', '!=', '<', '<=', '>', '>=', '\+', '-', '\*', '/', '//', '\%', '\*\*',
+                 '\+=', '-=', '\*=',
+                 '/=', '\%=', '\^', '\|', '\&', '\~', '>>', '<<', ]
 
     # Python braces
-    braces = ['\{', '\}', '\(', '\)', '\[', '\]',]
+    braces = ['\{', '\}', '\(', '\)', '\[', '\]', ]
 
     def highlightBlock(self, text):
         self.tri_single = (QRegExp("'''"), 1, STYLES['string2'])
@@ -243,7 +245,7 @@ class NumberBar(QWidget):
                     font.setBold(False)
 
                 painter.setFont(font)
-                painter.drawText(rect, Qt.AlignRight, '%i'%number)
+                painter.drawText(rect, Qt.AlignRight, '%i' % number)
 
                 if block_top > event.rect().bottom():
                     condition = False
@@ -254,6 +256,7 @@ class NumberBar(QWidget):
 
 class SensorThread(QThread):
     output = pyqtSignal(str)
+
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
         self.stop_flag = False
@@ -262,7 +265,6 @@ class SensorThread(QThread):
     def __del__(self):
         self.stop_flag = True
         self.wait()
-
 
     def render(self, name):
         self.name = name
@@ -300,7 +302,8 @@ class CodeThread(QObject):
 
     @pyqtSlot()
     def run_code(self):
-        self.runnable_file = Popen([sys.executable, self.file_path], stdout=PIPE, stderr=PIPE, stdin=PIPE)
+        self.runnable_file = Popen([sys.executable, self.file_path], stdout=PIPE, stderr=PIPE,
+                                   stdin=PIPE)
         while self.runnable_file and self.runnable_file.poll() is None and not self.quit:
             try:
                 self.output += self.runnable_file.stdout.readline().decode("UTF-8")
@@ -311,13 +314,15 @@ class CodeThread(QObject):
                 self.output += self.runnable_file.stdout.read().decode() + self.runnable_file.stderr.read().decode()
             self.thread().finished.emit()
 
+
 class MainWindow(QWidget):
     def __init__(self, parent=None):
         super(MainWindow, self).__init__(parent)
         self.setWindowTitle("Среда разработки для квадрокоптеров Tello Edu")
         self.menu_font = QFont("Arial", 10)
         self.code_button_font = QFont("Arial", 16)
-        self.setGeometry(0, 0, QDesktopWidget().screenGeometry(0).width() * 0.66, QDesktopWidget().screenGeometry(0).height() * 0.66)
+        self.setGeometry(0, 0, QDesktopWidget().screenGeometry(0).width() * 0.66,
+                         QDesktopWidget().screenGeometry(0).height() * 0.66)
         self.thrd = None
         self.initUI()
 
@@ -336,7 +341,6 @@ class MainWindow(QWidget):
         self.tab_widget.setTabsClosable(True)
         self.tab_widget.tabCloseRequested.connect(self.close_selected_tab)
         self.file_tab_sub_layout.addWidget(self.tab_widget)
-
 
         sensor_layout = QVBoxLayout()
         self.sensor_connection = QComboBox()
@@ -365,6 +369,7 @@ class MainWindow(QWidget):
         self.stop_sensor_record.setText("Завершить запись")
         self.stop_sensor_record.setStyleSheet("background-color:red")
         self.stop_sensor_record.setFont(self.code_button_font)
+        self.stop_sensor_record.clicked.connect(self.write_to_csv)
         sensor_sub_layout.addWidget(self.stop_sensor_record)
         self.recording = False
         self.recorded_data = []
@@ -441,7 +446,8 @@ class MainWindow(QWidget):
         # file_actions
         new_file_action = QAction("Новый Файл", self)
         file_menu.addAction(new_file_action)
-        new_file_action.triggered.connect(lambda x: self.create_new_tab("Неназванный", "from tello_binom import *\n"))
+        new_file_action.triggered.connect(
+            lambda x: self.create_new_tab("Неназванный", "from tello_binom import *\n"))
 
         open_file_action = QAction("Открыть", self)
         file_menu.addAction(open_file_action)
@@ -530,12 +536,14 @@ class MainWindow(QWidget):
         sub_rotate_menu.setToolTipsVisible(True)
         turn_clockwise_action = QAction("clockwise(x)", self)
         sub_rotate_menu.addAction(turn_clockwise_action)
-        turn_clockwise_action.setToolTip("Поворот на х градусов по часовой стрелке (значение х от 1 до 360)")
+        turn_clockwise_action.setToolTip(
+            "Поворот на х градусов по часовой стрелке (значение х от 1 до 360)")
         turn_clockwise_action.triggered.connect(lambda: self.add_function("clockwise(20)"))
 
         turn_anticlockwise_action = QAction("anticlockwise(x)", self)
         sub_rotate_menu.addAction(turn_anticlockwise_action)
-        turn_anticlockwise_action.setToolTip("Поворот на х градусов против часовой стрелке (значение х от 1 до 360)")
+        turn_anticlockwise_action.setToolTip(
+            "Поворот на х градусов против часовой стрелке (значение х от 1 до 360)")
         turn_anticlockwise_action.triggered.connect(lambda: self.add_function("anticlockwise(20)"))
 
         add_move_command_bar.addMenu(sub_rotate_menu)
@@ -574,7 +582,8 @@ class MainWindow(QWidget):
         arc_action = QAction("arc(x1, y1, z1, x2, y2, z2, speed)", self)
         add_move_3d_bar.addAction(arc_action)
         arc_action.setToolTip("Движение по кривой, построенной через точку 1 к точке 2")
-        arc_action.triggered.connect(lambda: self.add_function("arc(x1, y1, z1, x2, y2, z2, speed)"))
+        arc_action.triggered.connect(
+            lambda: self.add_function("arc(x1, y1, z1, x2, y2, z2, speed)"))
 
         set_speed_action = QAction("speed(x)", self)
         add_set_command.addAction(set_speed_action)
@@ -697,7 +706,6 @@ class MainWindow(QWidget):
         listing_sub_menu.addAction(listing_10_3)
         listing_10_3.triggered.connect(lambda: self.get_listing("Lesson_10_3.py"))
 
-
     def connect_sensor(self, name):
         if name == 1:
             if self.sensor_thrd:
@@ -712,12 +720,10 @@ class MainWindow(QWidget):
         self.sensor_info.setPlainText("")
         self.sensor_thrd = None
 
-
     def set_sensor_data(self, data):
         self.sensor_info.setPlainText("\n".join(" ".join(i) for i in data.items()))
         if self.recording:
             self.recorded_data.append(data)
-
 
     def start_recording_data(self):
         if self.sensor_thrd:
@@ -726,8 +732,6 @@ class MainWindow(QWidget):
                 self.recorded_data = []
         else:
             self.sensor_info.setPlainText("no module connected")
-
-
 
     def exec_ended(self):
         self.set_output()
@@ -741,7 +745,6 @@ class MainWindow(QWidget):
             self.thrd.runnable_file.terminate()
             self.thrd.runnable_file = None
             self.thrd.thread().quit()
-
 
     def save_file_as(self):
         if self.tabs:
@@ -762,7 +765,6 @@ class MainWindow(QWidget):
             with open(file_path, "rt", encoding="UTF-8") as file:
                 text = file.read()
                 self.create_new_tab(file_path, text)
-
 
     def create_new_tab(self, file_path, text):
         tab_layout = QHBoxLayout()
@@ -805,12 +807,11 @@ class MainWindow(QWidget):
         if self.tabs:
             if os.path.exists(self.tabs[self.tab_widget.currentIndex()].file_path):
                 with open(self.tabs[self.tab_widget.currentIndex()].file_path, mode="wt",
-                        encoding="UTF-8") as file:
+                          encoding="UTF-8") as file:
                     file.write(self.tabs[self.tab_widget.currentIndex()].layout().itemAt(
                         1).widget().toPlainText())
             else:
                 self.save_file_as()
-
 
     def run_file(self):
         if self.tabs:
@@ -818,7 +819,6 @@ class MainWindow(QWidget):
             self.input_text_edit.last_text = ""
             self.input_text_edit.last_line = ""
             self.input_text_edit.clear()
-
 
             path = self.tabs[self.tab_widget.currentIndex()].file_path
             if os.path.exists(path) and os.path.isfile(path):
@@ -832,8 +832,6 @@ class MainWindow(QWidget):
             stdin = io.StringIO(self.input_text_edit.toPlainText())
             self.stdout = io.StringIO()
             sys.stdin, sys.stdout = stdin, self.stdout
-
-
 
             self.thrd = CodeThread(path)
             thread = QThread(self.thrd)
@@ -867,7 +865,8 @@ class MainWindow(QWidget):
         self.opened_lessons[-1].show()
 
     def get_listing(self, listing_name):
-        listing = decrypt_file("data/textures/video_background.png", f"data/Listings/{listing_name}").read().decode("utf-8")
+        listing = decrypt_file("data/textures/video_background.png",
+                               f"data/Listings/{listing_name}").read().decode("utf-8")
         self.create_new_tab(listing_name, listing)
 
     def push_text_to_running_file(self):
@@ -878,7 +877,8 @@ class MainWindow(QWidget):
                     self.input_text_edit.last_line = self.input_text_edit.last_line[:-1]
                 self.input_text_edit.last_text = text
             elif len(text) > len(self.input_text_edit.last_text):
-                new_text = self.input_text_edit.last_line + text[len(self.input_text_edit.last_text):]
+                new_text = self.input_text_edit.last_line + text[
+                                                            len(self.input_text_edit.last_text):]
                 if "\n" in new_text:
                     text1 = "\n".join(new_text.split("\n")[:-1]) + "\n"
                     self.thrd.runnable_file.stdin.write(text1.encode("UTF-8"))
@@ -888,10 +888,25 @@ class MainWindow(QWidget):
 
     def set_output(self):
         if self.thrd and self.thrd.runnable_file:
-            if len(self.thrd.output.split("\n")) > len(self.output_text_edit.toPlainText().split("\n")):
+            if len(self.thrd.output.split("\n")) > len(
+                    self.output_text_edit.toPlainText().split("\n")):
                 self.output_text_edit.setPlainText("\n".join(self.thrd.output.split("\n")[-10000:]))
                 self.output_text_edit.verticalScrollBar().setValue(
-                    self.output_text_edit.verticalScrollBar().value() + (len(self.thrd.output.split("\n")) - len(self.output_text_edit.toPlainText().split("\n"))) * 16)
+                    self.output_text_edit.verticalScrollBar().value() + (
+                            len(self.thrd.output.split("\n")) - len(
+                        self.output_text_edit.toPlainText().split("\n"))) * 16)
+
+    def write_to_csv(self):
+        filename = QFileDialog.getSaveFileName(self, "Сохранить запись с сенсоров", "",
+                                               "CSV(*.csv)",
+                                               options=FILEDIALOGS_OPTIONS)
+        if filename or filename[1]:
+            with open(filename[0], mode='w', encoding='UTF-8') as file:
+                table = csv.writer(file, delimiter=';', quotechar='"')
+                for dct in self.recorded_data:
+                    row = [str(datetime.datetime.today())] + [str(key) + str(value) for key, value
+                                                              in dct.items()]
+                    table.writerow(row)
 
 
 def hook(*args):
