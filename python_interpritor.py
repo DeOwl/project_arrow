@@ -255,7 +255,7 @@ class NumberBar(QWidget):
 
 
 class SensorThread(QThread):
-    output = pyqtSignal(str)
+    output = pyqtSignal(dict)
 
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
@@ -274,19 +274,21 @@ class SensorThread(QThread):
         if self.name:
             if self.name == 1:
                 connection = tello_sensor.connect_eco_sensor()
+                self.output.emit({})
             else:
                 connection = None
             if connection:
-                while not self.stop_flag:
-                    time.sleep(0.5)
-                    data = tello_sensor.get_data()
-                    if data:
-                        self.output.emit(data)
-                    elif data is None:
-                        self.output.emit({})
-                    else:
-                        window.sensor_connection.setCurrentIndex(0)
-                        self.stop_flag = True
+                try:
+                    while not self.stop_flag:
+                        time.sleep(0.5)
+                        data = tello_sensor.get_data()
+                        if data:
+                            self.output.emit(data)
+
+                except Exception as ex:
+                    print(ex)
+                    window.sensor_connection.setCurrentIndex(0)
+                    self.stop_flag = True
 
             else:
                 window.sensor_connection.setCurrentIndex(0)
@@ -332,6 +334,7 @@ class MainWindow(QWidget):
         self.setup_menu(menu_bar)
 
         self.file_tab_sub_layout = QVBoxLayout()
+        self.file_tab_sub_layout.setContentsMargins(0, 0, 0, 0)
 
         self.tab_widget = QTabWidget()
         main_layout = QVBoxLayout()
@@ -343,6 +346,7 @@ class MainWindow(QWidget):
         self.file_tab_sub_layout.addWidget(self.tab_widget)
 
         sensor_layout = QVBoxLayout()
+        sensor_layout.setContentsMargins(3, 3, 3, 3)
         self.sensor_connection = QComboBox()
 
         self.sensor_connection.addItem("-")
@@ -370,6 +374,7 @@ class MainWindow(QWidget):
         self.stop_sensor_record.setStyleSheet("background-color:red")
         self.stop_sensor_record.setFont(self.code_button_font)
         self.stop_sensor_record.clicked.connect(self.write_to_csv)
+        self.stop_sensor_record.hide()
         sensor_sub_layout.addWidget(self.stop_sensor_record)
         self.recording = False
         self.recorded_data = []
@@ -721,15 +726,18 @@ class MainWindow(QWidget):
         self.sensor_thrd = None
 
     def set_sensor_data(self, data):
-        self.sensor_info.setPlainText("\n".join(" ".join(i) for i in data.items()))
-        if self.recording:
+        self.sensor_info.setPlainText("\n".join(":\t".join(i) for i in data.items()))
+        if self.recording and data:
+            data["Время:"] = str(datetime.datetime.today())
             self.recorded_data.append(data)
 
     def start_recording_data(self):
         if self.sensor_thrd:
-            if not self.recording:
+            if not self.recording  and self.sensor_info.toPlainText() != "connecting...":
                 self.recording = True
                 self.recorded_data = []
+                self.start_sensor_record.hide()
+                self.stop_sensor_record.show()
         else:
             self.sensor_info.setPlainText("no module connected")
 
@@ -748,7 +756,7 @@ class MainWindow(QWidget):
 
     def save_file_as(self):
         if self.tabs:
-            file_path, _ = QFileDialog.getSaveFileName(
+            file_path, _ = QFileDialog.getOpenFileName(
                 self, "Сохранить Файл", "", "Py(*.py)", options=FILEDIALOGS_OPTIONS)
             if file_path:
                 self.tabs[self.tab_widget.currentIndex()].file_path = file_path
@@ -785,8 +793,8 @@ class MainWindow(QWidget):
         widget = QWidget()
         number_bar = NumberBar(text_widget, widget)
 
-        tab_layout.addWidget(number_bar)
-        tab_layout.addWidget(text_widget)
+        tab_layout.addWidget(number_bar, 0)
+        tab_layout.addWidget(text_widget, 1)
         widget.setLayout(tab_layout)
         widget.file_path = file_path
         widget.highlighter = MyHighlighter(text_widget.document())
@@ -851,7 +859,7 @@ class MainWindow(QWidget):
         except:
             pass
 
-    def closeEvent(self, QCloseEvent):
+    def closeEvent(self, close_event):
         self.exec_ended()
         for i in self.tabs:
             path = i.file_path
@@ -897,16 +905,19 @@ class MainWindow(QWidget):
                         self.output_text_edit.toPlainText().split("\n"))) * 16)
 
     def write_to_csv(self):
-        filename = QFileDialog.getSaveFileName(self, "Сохранить запись с сенсоров", "",
-                                               "CSV(*.csv)",
-                                               options=FILEDIALOGS_OPTIONS)
-        if filename or filename[1]:
-            with open(filename[0], mode='w', encoding='UTF-8') as file:
-                table = csv.writer(file, delimiter=';', quotechar='"')
-                for dct in self.recorded_data:
-                    row = [str(datetime.datetime.today())] + [str(key) + str(value) for key, value
-                                                              in dct.items()]
-                    table.writerow(row)
+        self.start_sensor_record.show()
+        self.stop_sensor_record.hide()
+        if self.recorded_data:
+            filename = QFileDialog.getSaveFileName(self, "Сохранить запись с сенсоров", "",
+                                                   "CSV(*.csv)",
+                                                   options=FILEDIALOGS_OPTIONS)
+            if filename or filename[1]:
+                with open(filename[0], mode='w', encoding='1251') as file:
+                    table = csv.writer(file, delimiter=';', quotechar='"')
+                    table.writerow(self.recorded_data[0].keys())
+                    for dct in self.recorded_data:
+                        row = [str(value) for key, value in dct.items()]
+                        table.writerow(row)
 
 
 def hook(*args):
