@@ -1,4 +1,4 @@
-﻿from tello import *
+﻿from tello_binom import *
 import time
  
 upperBodyCascade = cv2.CascadeClassifier('haarcascade_upperbody.xml')

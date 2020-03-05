@@ -1,4 +1,4 @@
-from tello import *
+from tello_binom import *
 
 def scan(layer_radius): # Скан объектов в квадрате со стороной 3 м
     right(layer_radius)

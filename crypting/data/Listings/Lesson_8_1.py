@@ -1,4 +1,4 @@
-﻿from tello import *
+﻿from tello_binom import *
 
 def start_flight(): # занятие стартовой позиции у первого участка
     takeoff()

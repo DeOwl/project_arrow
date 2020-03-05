@@ -1,4 +1,4 @@
-from tello import *
+from tello_binom import *
 import time
 import math
 

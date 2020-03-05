@@ -1,4 +1,4 @@
-from tello import *
+from tello_binom import *
 
 # Отображение экрана UI
 def show_ui(): # Определить функцию show_ui

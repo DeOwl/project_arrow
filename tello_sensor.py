@@ -5,8 +5,10 @@ import serial.tools.list_ports
 ser = None
 connection_type = None
 def connect_eco_sensor():
+    global ser, connection_type
     try:
-        global ser, connection_type
+        if ser:
+            ser.close()
         port_name = None
         ports = list(serial.tools.list_ports.comports())
         for p in ports:

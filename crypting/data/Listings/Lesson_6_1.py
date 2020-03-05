@@ -1,4 +1,4 @@
-﻿from tello import *
+﻿from tello_binom import *
 import time
 
 faceCascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')

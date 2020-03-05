@@ -1,4 +1,4 @@
-﻿from tello import *
+﻿from tello_binom import *
 template = cv2.imread("einstein.template.png") # любой шаблон
 threshold = 0.7 # можно менять это значение
 h, w, c = template.shape

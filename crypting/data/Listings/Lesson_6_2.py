@@ -1,4 +1,4 @@
-﻿from tello import *
+﻿from tello_binom import *
 import time
 
 eyeCascade = cv2.CascadeClassifier('haarcascade_eye.xml')

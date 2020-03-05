@@ -17,6 +17,7 @@ from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QPlainTextEdit, 
     QVBoxLayout, QFileDialog, QPushButton, QSplitter, QLabel, QMenu, QHBoxLayout, QScrollArea, \
     QSizePolicy, QComboBox, QDesktopWidget
 
+import serial.tools.list_ports
 import tello_sensor
 
 FILEDIALOGS_OPTIONS = QFileDialog.Options()
@@ -27,11 +28,9 @@ def decrypt_file(image_path, file_path):
 image_path - путь к трояну
 file_path - необходимый файл в трояне'''
 
-    img = Image.open(image_path)
-    x, y = img.size
     with zipfile.ZipFile(image_path) as zf:
         # Придумать пароль
-        return zf.open(file_path, pwd=f"{x}{image_path.split('/')[-1]}{y}".encode("utf-8"))
+        return zf.open(file_path, pwd=b"poma_loh")
 
 
 class LessonView(QWidget):
@@ -77,7 +76,7 @@ class LessonView(QWidget):
 
     def get_images(self, lesson_num, amount_of_pages, amount_of_listings):
         for i in range(1, amount_of_pages + 1):
-            page = decrypt_file("data/textures/video_background.png",
+            page = decrypt_file("data/data.dji",
                                 f"data/Lesson{lesson_num}_jpg/Lesson{lesson_num}_jpg/Lesson-{lesson_num}-{i}.jpg")
             pixmap = QPixmap()
             pixmap.loadFromData(page.read())
@@ -280,13 +279,12 @@ class SensorThread(QThread):
             if connection:
                 try:
                     while not self.stop_flag:
-                        time.sleep(0.5)
+                        time.sleep(0.1)
                         data = tello_sensor.get_data()
                         if data:
                             self.output.emit(data)
 
-                except Exception as ex:
-                    print(ex)
+                except:
                     window.sensor_connection.setCurrentIndex(0)
                     self.stop_flag = True
 
@@ -308,12 +306,12 @@ class CodeThread(QObject):
                                    stdin=PIPE)
         while self.runnable_file and self.runnable_file.poll() is None and not self.quit:
             try:
-                self.output += self.runnable_file.stdout.readline().decode("UTF-8")
+                self.output += self.runnable_file.stdout.readline().decode("windows-1251")
             except:
                 break
         if self.runnable_file:
             if not self.quit:
-                self.output += self.runnable_file.stdout.read().decode() + self.runnable_file.stderr.read().decode()
+                self.output += self.runnable_file.stdout.read().decode("windows-1251") + self.runnable_file.stderr.read().decode("windows-1251")
             self.thread().finished.emit()
 
 
@@ -360,7 +358,7 @@ class MainWindow(QWidget):
         self.sensor_thrd = None
 
         sensor_tab_widget = QTabWidget()
-
+        sensor_tab_widget.setFixedWidth(600)
         sensor_widget = QWidget()
         sensor_sub_layout = QHBoxLayout()
         self.start_sensor_record = QPushButton(self)
@@ -714,12 +712,16 @@ class MainWindow(QWidget):
     def connect_sensor(self, name):
         if name == 1:
             if self.sensor_thrd:
+                self.sensor_thrd.stop_flag = True
                 del self.sensor_thrd
             self.sensor_info.setPlainText("connecting...")
             self.sensor_thrd = SensorThread()
             self.sensor_thrd.finished.connect(self.finished_sensor_thrd)
             self.sensor_thrd.output.connect(self.set_sensor_data)
             self.sensor_thrd.render(1)
+        elif name == 0:
+            if self.sensor_thrd:
+                self.sensor_thrd.stop_flag = True
 
     def finished_sensor_thrd(self):
         self.sensor_info.setPlainText("")
@@ -756,7 +758,7 @@ class MainWindow(QWidget):
 
     def save_file_as(self):
         if self.tabs:
-            file_path, _ = QFileDialog.getOpenFileName(
+            file_path, _ = QFileDialog.getSaveFileName(
                 self, "Сохранить Файл", "", "Py(*.py)", options=FILEDIALOGS_OPTIONS)
             if file_path:
                 self.tabs[self.tab_widget.currentIndex()].file_path = file_path
@@ -873,7 +875,7 @@ class MainWindow(QWidget):
         self.opened_lessons[-1].show()
 
     def get_listing(self, listing_name):
-        listing = decrypt_file("data/textures/video_background.png",
+        listing = decrypt_file("data/data.dji",
                                f"data/Listings/{listing_name}").read().decode("utf-8")
         self.create_new_tab(listing_name, listing)
 
@@ -907,6 +909,7 @@ class MainWindow(QWidget):
     def write_to_csv(self):
         self.start_sensor_record.show()
         self.stop_sensor_record.hide()
+        self.recording = False
         if self.recorded_data:
             filename = QFileDialog.getSaveFileName(self, "Сохранить запись с сенсоров", "",
                                                    "CSV(*.csv)",
