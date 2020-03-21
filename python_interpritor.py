@@ -9,15 +9,15 @@ import traceback
 import zipfile
 from subprocess import Popen, PIPE
 
-from PIL import Image
 from PyQt5.QtCore import Qt, QThread, QObject, pyqtSignal, pyqtSlot, QRegExp, QRect, QTimer
 from PyQt5.QtGui import QFont, QPixmap, QSyntaxHighlighter, QTextCharFormat, QColor, \
     QPainter, QFontMetrics
 from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QPlainTextEdit, QAction, QWidget, \
     QVBoxLayout, QFileDialog, QPushButton, QSplitter, QLabel, QMenu, QHBoxLayout, QScrollArea, \
     QSizePolicy, QComboBox, QDesktopWidget
+import pyqtgraph as pg
+from PyQt5 import uic
 
-import serial.tools.list_ports
 import tello_sensor
 
 FILEDIALOGS_OPTIONS = QFileDialog.Options()
@@ -376,13 +376,29 @@ class MainWindow(QWidget):
         sensor_sub_layout.addWidget(self.stop_sensor_record)
         self.recording = False
         self.recorded_data = []
+        self.sensor_data = {}
+
+        graph_widget = QWidget()
+        self.graph_options = QComboBox()
+        self.graph_options.currentIndexChanged.connect(self.set_graph)
+        self.current_graph = -1
+
+        self.show_graph = pg.PlotWidget()
+        pen = pg.mkPen(color=(255, 0, 0))
+        self.data_line = self.show_graph.plot([], [], pen=pen)
+
+        graph_layout = QVBoxLayout()
+        graph_layout.addWidget(self.graph_options)
+        graph_layout.addWidget(self.show_graph)
+        graph_widget.setLayout(graph_layout)
+        self.show_graph.setBackground('w')
 
         sensor_layout.addWidget(self.sensor_connection, 0)
         sensor_layout.addWidget(self.sensor_info, 1)
         sensor_layout.addLayout(sensor_sub_layout)
         sensor_widget.setLayout(sensor_layout)
         sensor_tab_widget.addTab(sensor_widget, "Сенсор")
-        sensor_tab_widget.addTab(QWidget(), "График")
+        sensor_tab_widget.addTab(graph_widget, "График")
 
         sub_layout = QHBoxLayout()
         sub_layout.addLayout(self.file_tab_sub_layout, 0)
@@ -729,9 +745,28 @@ class MainWindow(QWidget):
 
     def set_sensor_data(self, data):
         self.sensor_info.setPlainText("\n".join(":\t".join(i) for i in data.items()))
+        time = str(datetime.datetime.today())
         if self.recording and data:
-            data["Время:"] = str(datetime.datetime.today())
+            data["Время:"] = time
             self.recorded_data.append(data)
+
+        for i in data.keys():
+            try:
+                current_data = self.sensor_data[i]
+                current_data[list(current_data.keys())[-1] + 1] = float(data[i])
+                if len(current_data.keys()) > 100:
+                    current_data.pop(list(current_data.keys())[0])
+                self.sensor_data[i] = current_data
+            except:
+                self.sensor_data[i] = {1: float(data[i])}
+                self.graph_options.addItem(str(i))
+        if self.sensor_data:
+            data_x = list(self.sensor_data[list(self.sensor_data.keys())[self.current_graph]].keys())
+            data_y = list(self.sensor_data[list(self.sensor_data.keys())[self.current_graph]].values())
+            self.data_line.setData(data_x, data_y)
+
+    def set_graph(self, current_index):
+        self.current_graph = current_index
 
     def start_recording_data(self):
         if self.sensor_thrd:
