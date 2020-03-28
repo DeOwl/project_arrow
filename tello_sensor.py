@@ -12,8 +12,9 @@ def connect_eco_sensor():
         port_name = None
         ports = list(serial.tools.list_ports.comports())
         for p in ports:
-            if "Prolif" in str(p):
-                port_name = str(p)[:5]
+            if "Prolif" in p.manufacturer:
+                port_name = p.device
+                break
                 # определение порта
         if port_name:
             ser = serial.Serial(port_name)
