@@ -277,6 +277,7 @@ class SensorThread(QThread):
             else:
                 connection = None
             if connection:
+                print(1, file=sys.__stdout__)
                 try:
                     while not self.stop_flag:
                         time.sleep(0.1)
@@ -747,7 +748,7 @@ class MainWindow(QWidget):
         self.sensor_info.setPlainText("\n".join(":\t".join(i) for i in data.items()))
         time = str(datetime.datetime.today())
         if self.recording and data:
-            data["Время:"] = time
+            data["Время"] = time
             self.recorded_data.append(data)
 
         for i in data.keys():
@@ -758,7 +759,10 @@ class MainWindow(QWidget):
                     current_data.pop(list(current_data.keys())[0])
                 self.sensor_data[i] = current_data
             except:
-                self.sensor_data[i] = {1: float(data[i])}
+                try:
+                    self.sensor_data[i] = {1: float(data[i])}
+                except:
+                    pass
                 self.graph_options.addItem(str(i))
         if self.sensor_data:
             data_x = list(self.sensor_data[list(self.sensor_data.keys())[self.current_graph]].keys())
@@ -952,9 +956,9 @@ class MainWindow(QWidget):
             if filename or filename[1]:
                 with open(filename[0], mode='w', encoding='windows-1251') as file:
                     table = csv.writer(file, delimiter=';', quotechar='"')
-                    table.writerow(self.recorded_data[0].keys())
+                    table.writerow(map(lambda x: f'"{x}"', self.recorded_data[0].keys()))
                     for dct in self.recorded_data:
-                        row = [str(value) for key, value in dct.items()]
+                        row = [str(value) for value in dct.values()]
                         table.writerow(row)
 
 
