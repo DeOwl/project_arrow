@@ -950,7 +950,7 @@ class MainWindow(QWidget):
                                                    "CSV(*.csv)",
                                                    options=FILEDIALOGS_OPTIONS)
             if filename or filename[1]:
-                with open(filename[0], mode='w', encoding='1251') as file:
+                with open(filename[0], mode='w', encoding='windows-1251') as file:
                     table = csv.writer(file, delimiter=';', quotechar='"')
                     table.writerow(self.recorded_data[0].keys())
                     for dct in self.recorded_data:
