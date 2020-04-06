@@ -272,7 +272,7 @@ class SensorThread(QThread):
     def run(self):
         if self.name:
             if self.name == 1:
-                connection = tello_sensor.connect_eco_sensor()
+                connection = tello_sensor.connect_sensor()
                 self.output.emit({})
             else:
                 connection = None
@@ -312,7 +312,8 @@ class CodeThread(QObject):
                 break
         if self.runnable_file:
             if not self.quit:
-                self.output += self.runnable_file.stdout.read().decode("UTF-8") + self.runnable_file.stderr.read().decode("UTF-8")
+                self.output += self.runnable_file.stdout.read().decode(
+                    "UTF-8") + self.runnable_file.stderr.read().decode("UTF-8")
             self.thread().finished.emit()
 
 
@@ -472,7 +473,7 @@ class MainWindow(QWidget):
         new_file_action = QAction("Новый Файл", self)
         file_menu.addAction(new_file_action)
         new_file_action.triggered.connect(
-            lambda x: self.create_new_tab("Неназванный", "from tello_binom import *\n"))
+            lambda x: self.create_new_tab("Неназванный", "from tello_binom import *\nfrom tello_sensor import *\n"))
 
         open_file_action = QAction("Открыть", self)
         file_menu.addAction(open_file_action)
@@ -734,32 +735,32 @@ class MainWindow(QWidget):
         # laser module actions
         lamp_1 = QMenu('Светодиод 1', self)
         lamp_1.setToolTipsVisible(True)
-        red_1 = QAction("Lamp1('red', True)", self)
+        red_1 = QAction("Lamp1('r')", self)
         red_1.setToolTip('Зажечь светодиод красным')
-        red_1.triggered.connect(lambda: self.add_function("Lamp1('red', True)"))
-        green_1 = QAction("Lamp1('green', True)", self)
+        red_1.triggered.connect(lambda: self.add_function("Lamp1('r')"))
+        green_1 = QAction("Lamp1('g')", self)
         green_1.setToolTip('Зажечь светодиод зелёным')
-        green_1.triggered.connect(lambda: self.add_function("Lamp1('green', True)"))
-        yellow_1 = QAction("Lamp1('yellow', True)", self)
+        green_1.triggered.connect(lambda: self.add_function("Lamp1('g')"))
+        yellow_1 = QAction("Lamp1('y')", self)
         yellow_1.setToolTip('Зажечь светодиод жёлтым')
-        yellow_1.triggered.connect(lambda: self.add_function("Lamp1('yellow', True)"))
+        yellow_1.triggered.connect(lambda: self.add_function("Lamp1('y')"))
         off_1 = QAction('Lamp1()', self)
-        off_1.setToolTip('Выключить л')
+        off_1.setToolTip('Выключить светодиод')
         off_1.triggered.connect(lambda: self.add_function("Lamp1()"))
         lamp_1.addActions([red_1, green_1, yellow_1, off_1])
         laser_module_menu.addMenu(lamp_1)
 
         lamp_2 = QMenu('Светодиод 2', self)
         lamp_2.setToolTipsVisible(True)
-        red_2 = QAction("Lamp2('red', True)", self)
+        red_2 = QAction("Lamp2('r')", self)
         red_2.setToolTip('Зажечь светодиод красным')
-        red_2.triggered.connect(lambda: self.add_function("Lamp2('red', True)"))
-        green_2 = QAction("Lamp2('green', True)", self)
+        red_2.triggered.connect(lambda: self.add_function("Lamp2('r')"))
+        green_2 = QAction("Lamp2('g')", self)
         green_2.setToolTip('Зажечь светодиод зелёным')
-        green_2.triggered.connect(lambda: self.add_function("Lamp2('green', True)"))
-        yellow_2 = QAction("Lamp2('yellow', True)", self)
+        green_2.triggered.connect(lambda: self.add_function("Lamp2('g')"))
+        yellow_2 = QAction("Lamp2('y')", self)
         yellow_2.setToolTip('Зажечь светодиод жёлтым')
-        yellow_2.triggered.connect(lambda: self.add_function("Lamp2('yellow', True)"))
+        yellow_2.triggered.connect(lambda: self.add_function("Lamp2('y')"))
         off_2 = QAction('Lamp2()', self)
         off_2.setToolTip('Выключить светодиод')
         off_2.triggered.connect(lambda: self.add_function("Lamp2()"))
@@ -768,15 +769,15 @@ class MainWindow(QWidget):
 
         lamp_3 = QMenu('Светодиод 3', self)
         lamp_3.setToolTipsVisible(True)
-        red_3 = QAction("Lamp3('red', True)", self)
+        red_3 = QAction("Lamp3('r')", self)
         red_3.setToolTip('Зажечь светодиод красным')
-        red_3.triggered.connect(lambda: self.add_function("Lamp3('red', True)"))
-        green_3 = QAction("Lamp3('green', True)", self)
+        red_3.triggered.connect(lambda: self.add_function("Lamp3('r')"))
+        green_3 = QAction("Lamp3('g')", self)
         green_3.setToolTip('Зажечь светодиод зелёным')
-        green_3.triggered.connect(lambda: self.add_function("Lamp3('green', True)"))
-        yellow_3 = QAction("Lamp3('yellow', True)", self)
+        green_3.triggered.connect(lambda: self.add_function("Lamp3('g')"))
+        yellow_3 = QAction("Lamp3('y')", self)
         yellow_3.setToolTip('Зажечь светодиод жёлтым')
-        yellow_3.triggered.connect(lambda: self.add_function("Lamp3('yellow', True)"))
+        yellow_3.triggered.connect(lambda: self.add_function("Lamp3('y')"))
         off_3 = QAction('Lamp3()', self)
         off_3.setToolTip('Выключить светодиод')
         off_3.triggered.connect(lambda: self.add_function("Lamp3()"))
@@ -785,15 +786,15 @@ class MainWindow(QWidget):
 
         lamp_4 = QMenu('Светодиод 4', self)
         lamp_4.setToolTipsVisible(True)
-        red_4 = QAction("Lamp4('red', True)", self)
+        red_4 = QAction("Lamp4('r')", self)
         red_4.setToolTip('Зажечь светодиод красным')
-        red_4.triggered.connect(lambda: self.add_function("Lamp4('red', True)"))
-        green_4 = QAction("Lamp4('green', True)", self)
+        red_4.triggered.connect(lambda: self.add_function("Lamp4('r')"))
+        green_4 = QAction("Lamp4('g')", self)
         green_4.setToolTip('Зажечь светодиод зелёным')
-        green_4.triggered.connect(lambda: self.add_function("Lamp4('green', True)"))
-        yellow_4 = QAction("Lamp4('yellow', True)", self)
+        green_4.triggered.connect(lambda: self.add_function("Lamp4('g')"))
+        yellow_4 = QAction("Lamp4('y')", self)
         yellow_4.setToolTip('Зажечь светодиод жёлтым')
-        yellow_4.triggered.connect(lambda: self.add_function("Lamp4('yellow', True)"))
+        yellow_4.triggered.connect(lambda: self.add_function("Lamp4('y')"))
         off_4 = QAction('Lamp4()', self)
         off_4.setToolTip('Выключить светодиод')
         off_4.triggered.connect(lambda: self.add_function("Lamp4()"))
@@ -802,15 +803,15 @@ class MainWindow(QWidget):
 
         lamp_5 = QMenu('Светодиод 5', self)
         lamp_5.setToolTipsVisible(True)
-        red_5 = QAction("Lamp5('red', True)", self)
+        red_5 = QAction("Lamp5('r')", self)
         red_5.setToolTip('Зажечь светодиод красным')
-        red_5.triggered.connect(lambda: self.add_function("Lamp5('red', True)"))
-        green_5 = QAction("Lamp5('green', True)", self)
+        red_5.triggered.connect(lambda: self.add_function("Lamp5('r')"))
+        green_5 = QAction("Lamp5('g')", self)
         green_5.setToolTip('Зажечь светодиод зелёным')
-        green_5.triggered.connect(lambda: self.add_function("Lamp5('green', True)"))
-        yellow_5 = QAction("Lamp5('yellow', True)", self)
+        green_5.triggered.connect(lambda: self.add_function("Lamp5('g')"))
+        yellow_5 = QAction("Lamp5('y')", self)
         yellow_5.setToolTip('Зажечь светодиод жёлтым')
-        yellow_5.triggered.connect(lambda: self.add_function("Lamp5('yellow', True)"))
+        yellow_5.triggered.connect(lambda: self.add_function("Lamp5('y')"))
         off_5 = QAction('Lamp5()', self)
         off_5.setToolTip('Выключить светодиод')
         off_5.triggered.connect(lambda: self.add_function("Lamp5()"))
@@ -823,13 +824,13 @@ class MainWindow(QWidget):
         laser_off = QAction('laser_off()', self)
         laser_off.setToolTip('Выключить лазер')
         laser_off.triggered.connect(lambda: self.add_function("laser_off()"))
-        beep_on = QAction('beep_on()')
+        beep_on = QAction('beep_on()', self)
         beep_on.setToolTip('Включить динамик')
         beep_on.triggered.connect(lambda: self.add_function('beep_on()'))
-        beep_off = QAction('beep_off()')
+        beep_off = QAction('beep_off()', self)
         beep_off.setToolTip('Выключить динамик')
         beep_off.triggered.connect(lambda: self.add_function('beep_off()'))
-        reset_all = QAction('reset_all()')
+        reset_all = QAction('reset_all()', self)
         reset_all.setToolTip('Выключает все светодиоды, динамик и лазер')
         reset_all.triggered.connect(lambda: self.add_function('reset_all()'))
         laser_module_menu.addActions([laser_on, laser_off, beep_on, beep_off, reset_all])
@@ -882,7 +883,7 @@ class MainWindow(QWidget):
 
     def start_recording_data(self):
         if self.sensor_thrd:
-            if not self.recording  and self.sensor_info.toPlainText() != "connecting...":
+            if not self.recording and self.sensor_info.toPlainText() != "connecting...":
                 self.recording = True
                 self.recorded_data = []
                 self.start_sensor_record.hide()

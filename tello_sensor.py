@@ -4,7 +4,7 @@ import serial.tools.list_ports
 
 ser = None
 connection_type = None
-def connect_eco_sensor():
+def connect_sensor():
     global ser, connection_type
     try:
         if ser:
@@ -14,12 +14,16 @@ def connect_eco_sensor():
         for p in ports:
             if "Prolif" in p.manufacturer:
                 port_name = p.device
+                connection_type = 1
                 break
                 # определение порта
+            elif "SBRICKS" in p.manufacturer:
+                port_name = p.device
+                connection_type = 2
+                break
         if port_name:
             ser = serial.Serial(port_name)
             ser.baudrate = 115200
-            connection_type = 1
     except Exception:
         return False
     return True if ser else False
@@ -41,16 +45,16 @@ def get_data():
     return None
 
 
-def Lamp1(color="", state=False):
+def Lamp1(color=None):
     if connection_type == 2 and ser:
         ser.write(bytes('L1=0', 'utf-8'))
         ser.write(bytes('L2=0', 'utf-8'))
-        if state:
-            if color == "red":
+        if color:
+            if color == "r":
                 ser.write(bytes('L1=1', 'utf-8'))
-            elif color == "green":
+            elif color == "g":
                 ser.write(bytes('L2=1', 'utf-8'))
-            elif color == "yellow":
+            elif color == "y":
                 ser.write(bytes('L1=1', 'utf-8'))
                 ser.write(bytes('L2=1', 'utf-8'))
             else:
@@ -62,16 +66,16 @@ def Lamp1(color="", state=False):
             print("no module connected")
 
 
-def Lamp2(color="", state=False):
+def Lamp2(color=None):
     if connection_type == 2 and ser:
         ser.write(bytes('L3=0', 'utf-8'))
         ser.write(bytes('L4=0', 'utf-8'))
-        if state:
-            if color == "red":
+        if color:
+            if color == "r":
                 ser.write(bytes('L4=1', 'utf-8'))
-            elif color == "green":
+            elif color == "g":
                 ser.write(bytes('L3=1', 'utf-8'))
-            elif color == "yellow":
+            elif color == "y":
                 ser.write(bytes('L3=1', 'utf-8'))
                 ser.write(bytes('L4=1', 'utf-8'))
             else:
@@ -82,16 +86,16 @@ def Lamp2(color="", state=False):
         else:
             print("no module connected")
 
-def Lamp3(color="", state=False):
+def Lamp3(color=None):
     if connection_type == 2 and ser:
         ser.write(bytes('L5=0', 'utf-8'))
         ser.write(bytes('L6=0', 'utf-8'))
-        if state:
-            if color == "red":
+        if color:
+            if color == "r":
                 ser.write(bytes('L6=1', 'utf-8'))
-            elif color == "green":
+            elif color == "g":
                 ser.write(bytes('L5=1', 'utf-8'))
-            elif color == "yellow":
+            elif color == "y":
                 ser.write(bytes('L6=1', 'utf-8'))
                 ser.write(bytes('L5=1', 'utf-8'))
             else:
@@ -103,16 +107,16 @@ def Lamp3(color="", state=False):
             print("no module connected")
 
 
-def Lamp4(color="", state=False):
+def Lamp4(color=None):
     if connection_type == 2 and ser:
         ser.write(bytes('L7=0', 'utf-8'))
         ser.write(bytes('L8=0', 'utf-8'))
-        if state:
-            if color == "red":
+        if color:
+            if color == "r":
                 ser.write(bytes('L7=1', 'utf-8'))
-            elif color == "green":
+            elif color == "g":
                 ser.write(bytes('L8=1', 'utf-8'))
-            elif color == "yellow":
+            elif color == "y":
                 ser.write(bytes('L7=1', 'utf-8'))
                 ser.write(bytes('L8=1', 'utf-8'))
             else:
@@ -124,16 +128,16 @@ def Lamp4(color="", state=False):
             print("no module connected")
 
 
-def Lamp5(color="", state=False):
+def Lamp5(color=None):
     if connection_type == 2 and ser:
         ser.write(bytes('L9=0', 'utf-8'))
         ser.write(bytes('L0=0', 'utf-8'))
-        if state:
-            if color == "red":
+        if color:
+            if color == "r":
                 ser.write(bytes('L9=1', 'utf-8'))
-            elif color == "green":
+            elif color == "g":
                 ser.write(bytes('L0=1', 'utf-8'))
-            elif color == "yellow":
+            elif color == "y":
                 ser.write(bytes('L9=1', 'utf-8'))
                 ser.write(bytes('L80=1', 'utf-8'))
             else:
@@ -167,11 +171,11 @@ def beep_off():
 
 def reset_all():
     '''Turns all the feedback off'''
-    Lamp1("", False)
-    Lamp2("", False)
-    Lamp3("", False)
-    Lamp4("", False)
-    Lamp5("", False)
+    Lamp1()
+    Lamp2()
+    Lamp3()
+    Lamp4()
+    Lamp5()
 
     laser_off()
     beep_off()
