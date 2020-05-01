@@ -16,9 +16,9 @@ from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QPlainTextEdit, 
     QVBoxLayout, QFileDialog, QPushButton, QSplitter, QLabel, QMenu, QHBoxLayout, QScrollArea, \
     QSizePolicy, QComboBox, QDesktopWidget
 import pyqtgraph as pg
-from PyQt5 import uic
 
-import tello_sensor
+import tello_modules
+import tello_modules.sensor
 
 FILEDIALOGS_OPTIONS = QFileDialog.Options()
 
@@ -272,7 +272,7 @@ class SensorThread(QThread):
     def run(self):
         if self.name:
             if self.name == 1:
-                connection = tello_sensor.connect_sensor()
+                connection = tello_modules.connect_module(1)
                 self.output.emit({})
             else:
                 connection = None
@@ -281,11 +281,11 @@ class SensorThread(QThread):
                 try:
                     while not self.stop_flag:
                         time.sleep(0.1)
-                        data = tello_sensor.get_data()
+                        data = tello_modules.sensor.get_data()
                         if data:
                             self.output.emit(data)
 
-                except:
+                except Exception as err:
                     window.sensor_connection.setCurrentIndex(0)
                     self.stop_flag = True
 
@@ -314,6 +314,7 @@ class CodeThread(QObject):
             if not self.quit:
                 self.output += self.runnable_file.stdout.read().decode(
                     "UTF-8") + self.runnable_file.stderr.read().decode("UTF-8")
+                self.output += "\nПрограмма завершила свою работу"
             self.thread().finished.emit()
 
 
@@ -473,7 +474,7 @@ class MainWindow(QWidget):
         new_file_action = QAction("Новый Файл", self)
         file_menu.addAction(new_file_action)
         new_file_action.triggered.connect(
-            lambda x: self.create_new_tab("Неназванный", "from tello_binom import *\nfrom tello_sensor import *\n"))
+            lambda x: self.create_new_tab("Неназванный", "from tello_binom import *\nfrom tello_modules.laser import *\n"))
 
         open_file_action = QAction("Открыть", self)
         file_menu.addAction(open_file_action)
@@ -894,7 +895,6 @@ class MainWindow(QWidget):
     def exec_ended(self):
         self.set_output()
         self.terminate_thread()
-        print("\nПрограмма завершила свою работу")
         self.run_button.show()
         self.end_button.hide()
 

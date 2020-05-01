@@ -1,4 +1,4 @@
-from setuptools import setup,find_packages
+from setuptools import setup, find_packages
 setup(
       name = 'Tello',
       version = '2.1',
