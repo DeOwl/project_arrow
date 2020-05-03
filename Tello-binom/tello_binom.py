@@ -289,11 +289,11 @@ class _VideoStream:
             sock.sendto('streamon'.encode(encoding="utf-8"), tello_address)
             time.sleep(1)
             self.kill_event = threading.Event()
-            if platform.system() == "Darwin":
-                self.thread = threading.Thread(target=self._pygame_video_loop, args=[self.kill_event])
-                pygame.init()
-                self.screen = pygame.display.set_mode([640, 480])
-                pygame.display.set_caption("Video Stream")
+            if platform.system() == "Darwin" or "Linux":
+		        self.thread = threading.Thread(target=self._pygame_video_loop, args=[self.kill_event])
+		        pygame.init()
+		        self.screen = pygame.display.set_mode([640, 480])
+		        pygame.display.set_caption("Video Stream")
             else:
                 self.thread = threading.Thread(target=self._cv2_video_loop, args=[self.kill_event])
             self.thread.start()
