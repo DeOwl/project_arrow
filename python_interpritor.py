@@ -987,9 +987,6 @@ class MainWindow(QWidget):
 
             self.run_button.hide()
             self.end_button.show()
-            stdin = io.StringIO(self.input_text_edit.toPlainText())
-            self.stdout = io.StringIO()
-            sys.stdin, sys.stdout = stdin, self.stdout
 
             self.thrd = CodeThread(path)
             thread = QThread(self.thrd)
