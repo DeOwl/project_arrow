@@ -309,6 +309,8 @@ class SensorThread(QThread):
                 if self.connection:
                     while not self.stop_flag:
                         pass
+                else:
+                    window.sensor_connection.setCurrentIndex(0)
 
             else:
                 self.connection = None
@@ -431,6 +433,20 @@ class MainWindow(QWidget):
         self.lamp_color.addItem("желтый")
         self.lamp_color.hide()
         sensor_set_laser_layout.addWidget(self.lamp_color)
+
+        self.beep = QComboBox()
+        self.beep.addItem("Пищалка")
+        self.beep.addItem("Включить")
+        self.beep.addItem("Выключить")
+        self.beep.hide()
+        sensor_set_laser_layout.addWidget(self.beep)
+
+        self.laser = QComboBox()
+        self.laser.addItem("Лазер")
+        self.laser.addItem("Включить")
+        self.laser.addItem("Выключить")
+        self.laser.hide()
+        sensor_set_laser_layout.addWidget(self.laser)
 
         self.send_data = QPushButton("отправить")
         self.send_data.pressed.connect(self.set_laser_module)
@@ -935,9 +951,13 @@ class MainWindow(QWidget):
             self.sensor_thrd.render(2)
             self.lamp_choice.show()
             self.lamp_color.show()
+            self.beep.show()
+            self.laser.show()
         else:
             self.lamp_choice.hide()
             self.lamp_color.hide()
+            self.beep.hide()
+            self.laser.hide()
         if name == 0:
             if self.sensor_thrd:
                 self.sensor_thrd.stop_flag = True
@@ -1178,6 +1198,12 @@ class MainWindow(QWidget):
                 if self.lamp_color.currentText() == "желтый":
                     color = "y"
                 data["Lamp" + self.lamp_choice.currentText()[-1]] = color
+        if self.beep.currentIndex() != 0:
+            data["beep"] = self.beep.currentIndex() - 1
+
+        if self.laser.currentIndex() != 0:
+            data["beep"] = self.laser.currentIndex() - 1
+
         if self.sensor_thrd:
             self.sensor_thrd.set_data(data)
 
