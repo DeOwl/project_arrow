@@ -299,7 +299,6 @@ class SensorThread(QThread):
             else:
                 connection = None
             if connection:
-                print(1, file=sys.__stdout__)
                 try:
                     while not self.stop_flag:
                         time.sleep(0.1)
@@ -1075,7 +1074,9 @@ class MainWindow(QWidget):
         if os.path.exists('output.txt'):
             with open('output.txt') as f:
                 text = ''.join(f.readlines()[-1001:])
-                self.output_text_edit.setPlainText(text)
+            self.output_text_edit.setPlainText(text)
+            self.output_text_edit.verticalScrollBar().setValue(
+                self.output_text_edit.verticalScrollBar().maximum())
             with open('output.txt', mode='w') as f:
                 f.write(text)
 
