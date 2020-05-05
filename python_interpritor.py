@@ -1199,10 +1199,10 @@ class MainWindow(QWidget):
                     color = "y"
                 data["Lamp" + self.lamp_choice.currentText()[-1]] = color
         if self.beep.currentIndex() != 0:
-            data["beep"] = self.beep.currentIndex() - 1
+            data["Beep"] = self.beep.currentIndex() - 1
 
         if self.laser.currentIndex() != 0:
-            data["beep"] = self.laser.currentIndex() - 1
+            data["laser"] = self.laser.currentIndex() - 1
 
         if self.sensor_thrd:
             self.sensor_thrd.set_data(data)
