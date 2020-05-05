@@ -914,11 +914,11 @@ class MainWindow(QWidget):
 
     def exec_ended(self):
         self.set_output()
-        if os.path.exists('output.txt'):
-            os.remove('output.txt')
         self.terminate_thread()
         self.run_button.show()
         self.end_button.hide()
+        if os.path.exists('output.txt'):
+            os.remove('output.txt')
 
     def terminate_thread(self):
         if self.thrd and self.thrd.runnable_file:
