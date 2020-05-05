@@ -16,11 +16,33 @@ from PyQt5.QtWidgets import QApplication, QMenuBar, QTabWidget, QPlainTextEdit, 
     QVBoxLayout, QFileDialog, QPushButton, QSplitter, QLabel, QMenu, QHBoxLayout, QScrollArea, \
     QSizePolicy, QComboBox, QDesktopWidget
 import pyqtgraph as pg
-
+import time
 import tello_modules
 import tello_modules.sensor
 
 FILEDIALOGS_OPTIONS = QFileDialog.Options()
+
+def pre_exec(filepath):
+    with open(filepath, encoding='utf-8') as f:
+        text = f.readlines()
+    with open(filepath, mode='w', encoding='utf-8') as f:
+        f.write(("""from contextlib import redirect_stdout
+__f = open('output.txt', mode='wt', encoding='utf-8')
+__old_print = print
+def print(*args, **kwargs):
+    global __f
+    __old_print(*args, **kwargs)
+    __f.flush()
+with redirect_stdout(__f):
+""" + ''.join('    ' + i for i in text).replace('    ', '\t')))
+
+
+def post_exec(filepath):
+    with open(filepath, encoding='utf-8') as f:
+        text = f.readlines()
+    text = ''.join(map(lambda x: x[4:], text[8:]))
+    with open(filepath, mode='w', encoding='utf-8') as f:
+        f.write(text)
 
 
 def decrypt_file(image_path, file_path):
@@ -293,6 +315,13 @@ class SensorThread(QThread):
                 window.sensor_connection.setCurrentIndex(0)
 
 
+def get_output():
+    with open('output.txt', encoding='utf-8') as f:
+        return f.read()
+
+def set_output(string):
+    with open('output.txt',mode='a', encoding='utf-8') as f:
+        return f.write(string)
 class CodeThread(QObject):
     def __init__(self, file_path, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -303,19 +332,17 @@ class CodeThread(QObject):
 
     @pyqtSlot()
     def run_code(self):
-        self.runnable_file = Popen([sys.executable, self.file_path], stdout=PIPE, stderr=PIPE,
+        pre_exec(self.file_path)
+        self.runnable_file = Popen([sys.executable, self.file_path], stderr=PIPE,
                                    stdin=PIPE)
         while self.runnable_file and self.runnable_file.poll() is None and not self.quit:
-            try:
-                self.output += self.runnable_file.stdout.readline().decode("UTF-8")
-            except:
-                break
+            pass
         if self.runnable_file:
+            set_output(self.runnable_file.stderr.read().decode())
             if not self.quit:
-                self.output += self.runnable_file.stdout.read().decode(
-                    "UTF-8") + self.runnable_file.stderr.read().decode("UTF-8")
-                self.output += "\nПрограмма завершила свою работу"
-            self.thread().finished.emit()
+                self.runnable_file.terminate()
+        post_exec(self.file_path)
+        self.thread().finished.emit()
 
 
 class MainWindow(QWidget):
@@ -474,7 +501,8 @@ class MainWindow(QWidget):
         new_file_action = QAction("Новый Файл", self)
         file_menu.addAction(new_file_action)
         new_file_action.triggered.connect(
-            lambda x: self.create_new_tab("Неназванный", "from tello_binom import *\nfrom tello_modules.laser import *\n"))
+            lambda x: self.create_new_tab("Неназванный",
+                                          "from tello_binom import *\nfrom tello_modules.laser import *\n"))
 
         open_file_action = QAction("Открыть", self)
         file_menu.addAction(open_file_action)
@@ -894,6 +922,8 @@ class MainWindow(QWidget):
 
     def exec_ended(self):
         self.set_output()
+        if os.path.exists('output.txt'):
+            os.remove('output.txt')
         self.terminate_thread()
         self.run_button.show()
         self.end_button.hide()
@@ -1042,14 +1072,12 @@ class MainWindow(QWidget):
                 self.input_text_edit.last_text = text
 
     def set_output(self):
-        if self.thrd and self.thrd.runnable_file:
-            if len(self.thrd.output.split("\n")) > len(
-                    self.output_text_edit.toPlainText().split("\n")):
-                self.output_text_edit.setPlainText("\n".join(self.thrd.output.split("\n")[-10000:]))
-                self.output_text_edit.verticalScrollBar().setValue(
-                    self.output_text_edit.verticalScrollBar().value() + (
-                            len(self.thrd.output.split("\n")) - len(
-                        self.output_text_edit.toPlainText().split("\n"))) * 16)
+        if os.path.exists('output.txt'):
+            with open('output.txt') as f:
+                text = ''.join(f.readlines()[-1001:])
+                self.output_text_edit.setPlainText(text)
+            with open('output.txt', mode='w') as f:
+                f.write(text)
 
     def write_to_csv(self):
         self.start_sensor_record.show()
