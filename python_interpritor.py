@@ -25,7 +25,7 @@ FILEDIALOGS_OPTIONS = QFileDialog.Options()
 def pre_exec(filepath):
     with open(filepath, encoding='utf-8') as f:
         text = f.readlines()
-    with open(filepath, mode='w', encoding='utf-8') as f:
+    with open('executing.py', mode='w', encoding='utf-8') as f:
         f.write(("""from contextlib import redirect_stdout
 __f = open('output.txt', mode='wt', encoding='utf-8')
 __old_print = print
@@ -35,14 +35,6 @@ def print(*args, **kwargs):
     __f.flush()
 with redirect_stdout(__f):
 """ + ''.join('    ' + i for i in text).replace('    ', '\t')))
-
-
-def post_exec(filepath):
-    with open(filepath, encoding='utf-8') as f:
-        text = f.readlines()
-    text = ''.join(map(lambda x: x[4:], text[8:]))
-    with open(filepath, mode='w', encoding='utf-8') as f:
-        f.write(text)
 
 
 def decrypt_file(image_path, file_path):
@@ -332,7 +324,7 @@ class CodeThread(QObject):
     @pyqtSlot()
     def run_code(self):
         pre_exec(self.file_path)
-        self.runnable_file = Popen([sys.executable, self.file_path], stderr=PIPE,
+        self.runnable_file = Popen([sys.executable, "executing.py"], stderr=PIPE,
                                    stdin=PIPE)
         while self.runnable_file and self.runnable_file.poll() is None and not self.quit:
             pass
@@ -340,7 +332,8 @@ class CodeThread(QObject):
             set_output(self.runnable_file.stderr.read().decode())
             if not self.quit:
                 self.runnable_file.terminate()
-        post_exec(self.file_path)
+        if os.path.exists('executing.py'):
+            os.remove('executing.py')
         self.thread().finished.emit()
 
 
