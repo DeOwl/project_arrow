@@ -19,6 +19,7 @@ import pyqtgraph as pg
 import time
 import tello_modules
 import tello_modules.sensor
+import tello_modules.laser
 
 FILEDIALOGS_OPTIONS = QFileDialog.Options()
 
@@ -286,24 +287,56 @@ class SensorThread(QThread):
     def run(self):
         if self.name:
             if self.name == 1:
-                connection = tello_modules.connect_module(1)
+                self.connection = tello_modules.connect_module(1)
                 self.output.emit({})
-            else:
-                connection = None
-            if connection:
-                try:
-                    while not self.stop_flag:
-                        time.sleep(0.1)
-                        data = tello_modules.sensor.get_data()
-                        if data:
-                            self.output.emit(data)
+                if self.connection:
+                    try:
+                        while not self.stop_flag:
+                            time.sleep(0.1)
+                            data = tello_modules.sensor.get_data()
+                            if data:
+                                self.output.emit(data)
 
-                except Exception as err:
+                    except Exception as err:
+                        window.sensor_connection.setCurrentIndex(0)
+                        self.stop_flag = True
+
+                else:
                     window.sensor_connection.setCurrentIndex(0)
-                    self.stop_flag = True
+            elif self.name == 2:
+                self.connection = tello_modules.connect_module(2)
+                self.output.emit({})
+                if self.connection:
+                    while not self.stop_flag:
+                        pass
 
             else:
-                window.sensor_connection.setCurrentIndex(0)
+                self.connection = None
+
+
+    def set_data(self, data):
+        if self.connection:
+            for key, value in data.items():
+                if key == "Lamp1":
+                    tello_modules.laser.Lamp1(value)
+                elif key == "Lamp2":
+                    tello_modules.laser.Lamp2(value)
+                elif key == "Lamp3":
+                    tello_modules.laser.Lamp3(value)
+                elif key == "Lamp4":
+                    tello_modules.laser.Lamp4(value)
+                elif key == "Lamp5":
+                    tello_modules.laser.Lamp5(value)
+                elif key == "Beep":
+                    if value:
+                        tello_modules.laser.beep_on()
+                    else:
+                        tello_modules.laser.beep_on()
+                elif key == "laser":
+                    if value:
+                        tello_modules.laser.laser_on()
+                    else:
+                        tello_modules.laser.laser_off()
 
 
 def get_output():
@@ -371,6 +404,7 @@ class MainWindow(QWidget):
 
         self.sensor_connection.addItem("-")
         self.sensor_connection.addItem("Модуль экология")
+        self.sensor_connection.addItem("Модуль обратная связь")
         self.sensor_connection.currentIndexChanged.connect(self.connect_sensor)
         self.sensor_connection.setMaximumWidth(600)
         self.sensor_connection.setMaximumHeight(20)
@@ -378,6 +412,29 @@ class MainWindow(QWidget):
         self.sensor_info.setMaximumWidth(600)
         self.sensor_info.setReadOnly(True)
         self.sensor_thrd = None
+
+        sensor_set_laser_layout = QVBoxLayout()
+        self.lamp_choice = QComboBox()
+        self.lamp_choice.addItem("Лампочка")
+        self.lamp_choice.addItem("Лампочка 1")
+        self.lamp_choice.addItem("Лампочка 2")
+        self.lamp_choice.addItem("Лампочка 3")
+        self.lamp_choice.addItem("Лампочка 4")
+        self.lamp_choice.addItem("Лампочка 5")
+        self.lamp_choice.hide()
+        sensor_set_laser_layout.addWidget(self.lamp_choice)
+
+        self.lamp_color = QComboBox()
+        self.lamp_color.addItem("Цвет")
+        self.lamp_color.addItem("красный")
+        self.lamp_color.addItem("зеленый")
+        self.lamp_color.addItem("желтый")
+        self.lamp_color.hide()
+        sensor_set_laser_layout.addWidget(self.lamp_color)
+
+        self.send_data = QPushButton("отправить")
+        self.send_data.pressed.connect(self.set_laser_module)
+        sensor_set_laser_layout.addWidget(self.send_data)
 
         sensor_tab_widget = QTabWidget()
         sensor_tab_widget.setFixedWidth(600)
@@ -418,6 +475,7 @@ class MainWindow(QWidget):
         sensor_layout.addWidget(self.sensor_connection, 0)
         sensor_layout.addWidget(self.sensor_info, 1)
         sensor_layout.addLayout(sensor_sub_layout)
+        sensor_layout.addLayout(sensor_set_laser_layout)
         sensor_widget.setLayout(sensor_layout)
         sensor_tab_widget.addTab(sensor_widget, "Сенсор")
         sensor_tab_widget.addTab(graph_widget, "График")
@@ -866,7 +924,21 @@ class MainWindow(QWidget):
             self.sensor_thrd.finished.connect(self.finished_sensor_thrd)
             self.sensor_thrd.output.connect(self.set_sensor_data)
             self.sensor_thrd.render(1)
-        elif name == 0:
+        if name == 2:
+            if self.sensor_thrd:
+                self.sensor_thrd.stop_flag = True
+                del self.sensor_thrd
+            self.sensor_info.setPlainText("connecting...")
+            self.sensor_thrd = SensorThread()
+            self.sensor_thrd.finished.connect(self.finished_sensor_thrd)
+            self.sensor_thrd.output.connect(self.set_sensor_data)
+            self.sensor_thrd.render(2)
+            self.lamp_choice.show()
+            self.lamp_color.show()
+        else:
+            self.lamp_choice.hide()
+            self.lamp_color.hide()
+        if name == 0:
             if self.sensor_thrd:
                 self.sensor_thrd.stop_flag = True
 
@@ -917,8 +989,12 @@ class MainWindow(QWidget):
         self.terminate_thread()
         self.run_button.show()
         self.end_button.hide()
-        if os.path.exists('output.txt'):
-            os.remove('output.txt')
+
+        while os.path.exists('output.txt'):
+            try:
+                os.remove('output.txt')
+            except Exception:
+                pass
 
     def terminate_thread(self):
         if self.thrd and self.thrd.runnable_file:
@@ -1088,6 +1164,22 @@ class MainWindow(QWidget):
                     for dct in self.recorded_data:
                         row = [str(value) for value in dct.values()]
                         table.writerow(row)
+
+    def set_laser_module(self):
+
+        data = {}
+        if self.lamp_choice.currentText() != "Лампочка":
+            if self.lamp_color.currentText() != "Цвет":
+                color = ""
+                if self.lamp_color.currentText() == "красный":
+                    color = "r"
+                if self.lamp_color.currentText() == "зеленый":
+                    color = "g"
+                if self.lamp_color.currentText() == "желтый":
+                    color = "y"
+                data["Lamp" + self.lamp_choice.currentText()[-1]] = color
+        if self.sensor_thrd:
+            self.sensor_thrd.set_data(data)
 
 
 def hook(*args):
