@@ -326,7 +326,7 @@ class SensorThread(QThread):
                 elif key == "Lamp5":
                     tello_modules.laser.Lamp5(value)
                 elif key == "Beep":
-                    if not value:
+                    if value:
                         tello_modules.laser.beep_off()
                     else:
                         tello_modules.laser.beep_on()
@@ -361,7 +361,7 @@ class CodeThread(QObject):
             pass
         if self.runnable_file:
             set_output(self.runnable_file.stderr.read().decode())
-            if not self.quit:
+            if self.quit:
                 self.runnable_file.terminate()
         if os.path.exists('executing.py'):
             os.remove('executing.py')
