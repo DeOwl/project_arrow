@@ -489,7 +489,7 @@ class MainWindow(QWidget):
         sensor_layout.addLayout(sensor_sub_layout)
         sensor_layout.addLayout(sensor_set_laser_layout)
         sensor_widget.setLayout(sensor_layout)
-        sensor_tab_widget.addTab(sensor_widget, "Сенсор")
+        sensor_tab_widget.addTab(sensor_widget, "Модули")
         sensor_tab_widget.addTab(graph_widget, "График")
 
         sub_layout = QHBoxLayout()
