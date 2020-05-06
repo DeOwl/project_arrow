@@ -8,7 +8,7 @@ import time
 import traceback
 import zipfile
 from subprocess import Popen, PIPE
-
+from serial.serialutil import SerialException
 from PyQt5.QtCore import Qt, QThread, QObject, pyqtSignal, pyqtSlot, QRegExp, QRect, QTimer
 from PyQt5.QtGui import QFont, QPixmap, QSyntaxHighlighter, QTextCharFormat, QColor, \
     QPainter, QFontMetrics
@@ -276,10 +276,6 @@ class SensorThread(QThread):
         self.stop_flag = False
         self.name = None
 
-    def __del__(self):
-        self.stop_flag = True
-        self.wait()
-
     def render(self, name):
         self.name = name
         self.start()
@@ -330,15 +326,15 @@ class SensorThread(QThread):
                 elif key == "Lamp5":
                     tello_modules.laser.Lamp5(value)
                 elif key == "Beep":
-                    if value:
-                        tello_modules.laser.beep_on()
+                    if not value:
+                        tello_modules.laser.beep_off()
                     else:
                         tello_modules.laser.beep_on()
                 elif key == "laser":
                     if value:
-                        tello_modules.laser.laser_on()
-                    else:
                         tello_modules.laser.laser_off()
+                    else:
+                        tello_modules.laser.laser_on()
 
 
 def get_output():
@@ -934,7 +930,7 @@ class MainWindow(QWidget):
         if name == 1:
             if self.sensor_thrd:
                 self.sensor_thrd.stop_flag = True
-                del self.sensor_thrd
+                self.sensor_thrd.wait()
             self.sensor_info.setPlainText("connecting...")
             self.sensor_thrd = SensorThread()
             self.sensor_thrd.finished.connect(self.finished_sensor_thrd)
@@ -943,7 +939,7 @@ class MainWindow(QWidget):
         if name == 2:
             if self.sensor_thrd:
                 self.sensor_thrd.stop_flag = True
-                del self.sensor_thrd
+                self.sensor_thrd.wait()
             self.sensor_info.setPlainText("connecting...")
             self.sensor_thrd = SensorThread()
             self.sensor_thrd.finished.connect(self.finished_sensor_thrd)
@@ -959,8 +955,13 @@ class MainWindow(QWidget):
             self.beep.hide()
             self.laser.hide()
         if name == 0:
+            self.lamp_choice.hide()
+            self.lamp_color.hide()
+            self.beep.hide()
+            self.laser.hide()
             if self.sensor_thrd:
                 self.sensor_thrd.stop_flag = True
+                self.sensor_thrd.wait()
 
     def finished_sensor_thrd(self):
         self.sensor_info.setPlainText("")
@@ -1186,7 +1187,6 @@ class MainWindow(QWidget):
                         table.writerow(row)
 
     def set_laser_module(self):
-
         data = {}
         if self.lamp_choice.currentText() != "Лампочка":
             if self.lamp_color.currentText() != "Цвет":
@@ -1198,6 +1198,7 @@ class MainWindow(QWidget):
                 if self.lamp_color.currentText() == "желтый":
                     color = "y"
                 data["Lamp" + self.lamp_choice.currentText()[-1]] = color
+
         if self.beep.currentIndex() != 0:
             data["Beep"] = self.beep.currentIndex() - 1
 
@@ -1205,7 +1206,10 @@ class MainWindow(QWidget):
             data["laser"] = self.laser.currentIndex() - 1
 
         if self.sensor_thrd:
-            self.sensor_thrd.set_data(data)
+            try:
+                self.sensor_thrd.set_data(data)
+            except SerialException as err:
+                self.connect_sensor(0)
 
 
 def hook(*args):
