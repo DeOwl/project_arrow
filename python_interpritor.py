@@ -822,6 +822,9 @@ class MainWindow(QWidget):
         listing_10_3 = QAction("Урок10-3", self)
         listing_sub_menu.addAction(listing_10_3)
         listing_10_3.triggered.connect(lambda: self.get_listing("Lesson_10_3.py"))
+        cb_example_1 = QAction("Обратная связь пример", self)
+        cb_example_1.triggered.connect(lambda: self.get_listing("callback_example_1.py"))
+        listing_sub_menu.addAction(cb_example_1)
 
         # laser module actions
         lamp_1 = QMenu('Светодиод 1', self)
