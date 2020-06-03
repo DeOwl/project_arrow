@@ -44,4 +44,4 @@ file_path - необходимый файл в трояне'''
 
 
 
-encrypt_files('data.dji', 'data', 'res.dji')
+encrypt_files('data.dji', 'data', '../data/data.dji')
