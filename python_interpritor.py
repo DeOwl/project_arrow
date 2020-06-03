@@ -551,7 +551,7 @@ class MainWindow(QWidget):
         add_get_command = menu_bar.addMenu("Команды считывания значений")
         modules_menu = menu_bar.addMenu("Команды модулей")
         modules_menu.setToolTipsVisible(True)
-        laser_module_menu = QMenu('Светодиодный', self)
+        laser_module_menu = QMenu('Обратная связь', self)
         laser_module_menu.setToolTipsVisible(True)
         modules_menu.addMenu(laser_module_menu)
         add_get_command.setToolTipsVisible(True)
