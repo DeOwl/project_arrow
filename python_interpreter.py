@@ -388,8 +388,6 @@ class MainWindow(QWidget):
         if not int(open("data/info.dji", "r").readline().split(":")[-1]):
             install_python = QMessageBox.question(self, "Установка питона", "Мы заметили, что это ваш первый запуск этой программы. Хотели бы вы установить питон, необходимый для запуска ваших файлов?", QMessageBox.Yes, QMessageBox.No)
             if install_python == QMessageBox.Yes:
-                pass
-
                 os.system('"' + os.path.join(os.path.abspath(os.path.dirname(__file__)), "data\\python_installer.exe")+'" /passive --Include_pip=1 --PrependPath=1')
             os.system("pip install -r data/requirements.txt --no-index --find-links file:///tmp/packages")
 
