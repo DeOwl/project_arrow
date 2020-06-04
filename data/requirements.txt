@@ -1,7 +1,4 @@
 pyserial==3.4
 tello_modules
-<<<<<<< HEAD
-Tello==2.1
-=======
 tello_binom
->>>>>>> arrow_project/master
+
