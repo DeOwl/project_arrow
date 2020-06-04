@@ -1,3 +1,3 @@
 pyserial==3.4
 tello_modules
-Tello
+Tello==2.1

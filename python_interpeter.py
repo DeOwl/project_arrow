@@ -362,7 +362,7 @@ class CodeThread(QObject):
     @pyqtSlot()
     def run_code(self):
         pre_exec(self.file_path)
-        self.runnable_file = Popen(["python", "executing.py"], stderr=PIPE,
+        self.runnable_file = Popen(["pythonw", "executing.py"], stderr=PIPE,
                                    stdin=PIPE)
         while self.runnable_file and self.runnable_file.poll() is None and not self.quit:
             pass
