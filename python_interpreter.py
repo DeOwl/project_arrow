@@ -384,16 +384,22 @@ class MainWindow(QWidget):
         self.setGeometry(0, 0, QDesktopWidget().screenGeometry(0).width() * 0.66,
                          QDesktopWidget().screenGeometry(0).height() * 0.66)
         self.thrd = None
+
         self.initUI()
-        if not int(open("data/info.dji", "r").readline().split(":")[-1]):
-            install_python = QMessageBox.question(self, "Установка питона", "Мы заметили, что это ваш первый запуск этой программы. Хотели бы вы установить питон, необходимый для запуска ваших файлов?", QMessageBox.Yes, QMessageBox.No)
-            if install_python == QMessageBox.Yes:
-                os.system('"' + os.path.join(os.path.abspath(os.path.dirname(__file__)), "data\\python_installer.exe")+'" /passive --Include_pip=1 --PrependPath=1')
-            os.system("pip install -r data/requirements.txt --no-index --find-links file:///tmp/packages")
+
+   		self.check_for_installation()
 
         with open("data/info.dji", "w") as file:
             file.write("has_opened:1")
 
+
+    def check_for_installation(self):
+    	if not int(open("data/info.dji", "r").readline().split(":")[-1]):
+            install_python = QMessageBox.question(self, "Установка питона", "Мы заметили, что это ваш первый запуск этой программы."
+            	"Хотели бы вы установить питон, необходимый для запуска ваших файлов?", QMessageBox.Yes, QMessageBox.No)
+            if install_python == QMessageBox.Yes:
+                os.system(f'runas /user:Administrator "{os.path.join(os.path.abspath(os.path.dirname(__file__)), "data\\python_installer.exe")}" /passive --Include_pip=1 --PrependPath=1')
+            os.system("pip install -r data/requirements.txt --no-index --find-links file:///tmp/packages")
 
 
     def initUI(self):
