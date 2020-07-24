@@ -1,3 +1,0 @@
-pyserial==3.4
-tello_modules
-tello_binom
