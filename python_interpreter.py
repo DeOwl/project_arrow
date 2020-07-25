@@ -23,6 +23,7 @@ import tello_modules.laser
 
 FILEDIALOGS_OPTIONS = QFileDialog.Options()
 
+CUSTOM_INSTALL = os.getenv("TELLO_EDU_PYTHON", None)
 
 
 
@@ -351,6 +352,8 @@ def get_output():
 def set_output(string):
     with open('output.txt',mode='a', encoding='utf-8') as f:
         return f.write(string)
+
+        
 class CodeThread(QObject):
     def __init__(self, file_path, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -362,8 +365,13 @@ class CodeThread(QObject):
     @pyqtSlot()
     def run_code(self):
         pre_exec(self.file_path)
-        self.runnable_file = Popen(["pythonw", "executing.py"], stderr=PIPE,
+        # Проверка на установку питона при помощи нашей утилиты
+        if CUSTOM_INSTALL:
+            self.runnable_file = Popen([CUSTOM_INSTALL, "executing.py"], stderr=PIPE,
                                    stdin=PIPE)
+        else:
+            self.runnable_file = Popen(["pythonw", "executing.py"], stderr=PIPE,
+                                       stdin=PIPE)
         while self.runnable_file and self.runnable_file.poll() is None and not self.quit:
             pass
         if self.runnable_file:
@@ -386,21 +394,6 @@ class MainWindow(QWidget):
         self.thrd = None
 
         self.initUI()
-
-        self.check_for_installation()
-
-        with open("data/info.dji", "w") as file:
-            file.write("has_opened:1")
-
-
-    def check_for_installation(self):
-    	if not int(open("data/info.dji", "r").readline().split(":")[-1]):
-            install_python = QMessageBox.question(self, "Установка питона", "Мы заметили, что это ваш первый запуск этой программы."
-            	"Хотели бы вы установить питон, необходимый для запуска ваших файлов?", QMessageBox.Yes, QMessageBox.No)
-            if install_python == QMessageBox.Yes:
-                os.system(f'runas /user:Administrator "' + os.path.join(os.path.abspath(os.path.dirname(__file__)), "data\\python_installer.exe")+ '" /passive --Include_pip=1 --PrependPath=1')
-            os.system("pip install -r data/requirements.txt --no-index --find-links file:///tmp/packages")
-
 
     def initUI(self):
         menu_bar = QMenuBar()
@@ -1241,6 +1234,7 @@ class MainWindow(QWidget):
 def hook(*args):
     sys.stdout = sys.__stdout__
     traceback.print_last()
+    input("Введите enter")
     os._exit(-1)
 
 

@@ -1,0 +1,8 @@
+README.md
+setup.py
+tello_binom.py
+tello_binom.egg-info/PKG-INFO
+tello_binom.egg-info/SOURCES.txt
+tello_binom.egg-info/dependency_links.txt
+tello_binom.egg-info/requires.txt
+tello_binom.egg-info/top_level.txt

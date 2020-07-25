@@ -12,13 +12,13 @@ def connect_module(number):
         ports = list(serial.tools.list_ports.comports())
         for p in ports:
             if number == 1:
-                if "Prolif" in p.manufacturer:
+                if "Prolif" in p.manufacturer or "SBRICKS" in p.manufacturer:
                     port_name = p.device
                     com.connection_type = 1
                     break
                     # определение порта
             elif number == 2:
-                if "SBRICKS" in p.manufacturer:
+                if "SBRICKS" in p.manufacturer or "Prolif" in p.manufacturer:
                     port_name = p.device
                     com.connection_type = 2
                     break
